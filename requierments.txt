@@ -1,3 +1,4 @@
 streamlit
 geocoder
-requests
+streamlit-autorefresh
+
