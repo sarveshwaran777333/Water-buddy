@@ -1,0 +1,5 @@
+streamlit==1.50.0
+geocoder==1.38.1
+streamlit-autorefresh==1.0.1
+
+
