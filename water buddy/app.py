@@ -1,10 +1,22 @@
 ##EMAIL_ADDRESS = "sarveshtamilgaming2010@gmail.com"
 ##EMAIL_PASSWORD = "znna ksnu ycxa sabu"
 
+#import streamlit as st
+#import json, os, random, datetime
+#import geocoder
+#from streamlit_autorefresh import st_autorefresh
+
+
+
 import streamlit as st
 import json, os, random, datetime
-import geocoder
+from pyowm import OWM
+from meteostat import Point, Daily
+from datetime import date
 from streamlit_autorefresh import st_autorefresh
+import pandas as pd
+import numpy as np
+
 
 DATA_FILE = "users_data.json"
 
@@ -219,3 +231,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
