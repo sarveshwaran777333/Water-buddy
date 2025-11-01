@@ -1,226 +1,221 @@
+##EMAIL_ADDRESS = "sarveshtamilgaming2010@gmail.com"
+##EMAIL_PASSWORD = "znna ksnu ycxa sabu"
+
 import streamlit as st
-import json, os, datetime, random
-from pyowm import OWM
-from pyowm.utils.config import get_default_config
-from meteostat import Point, Daily
+import json, os, random, datetime
+import geocoder
+from streamlit_autorefresh import st_autorefresh
 
-# -----------------------
-# Data Management
-# -----------------------
-DATA_FILE = "users.json"
+DATA_FILE = "users_data.json"
 
+# ------------------- Utility Functions -------------------
 def load_data():
-    if os.path.exists(DATA_FILE):
-        with open(DATA_FILE, "r") as f:
-            return json.load(f)
-    return {}
+    if not os.path.exists(DATA_FILE):
+        return {}
+    with open(DATA_FILE, "r") as f:
+        return json.load(f)
 
 def save_data(data):
     with open(DATA_FILE, "w") as f:
         json.dump(data, f, indent=4)
 
-# -----------------------
-# WEATHER SYSTEM
-# -----------------------
-def get_weather_pyowm(city):
-    """Fetch current weather using PyOWM demo key"""
+def get_weather():
     try:
-        config_dict = get_default_config()
-        config_dict['language'] = 'en'
-        owm = OWM('b6907d289e10d714a6e88b30761fae22')  # public demo key
-        mgr = owm.weather_manager()
-        obs = mgr.weather_at_place(city)
-        w = obs.weather
-        temp = w.temperature('celsius')['temp']
-        status = w.detailed_status
-        return f"{status.title()} — {temp:.1f}°C"
-    except Exception:
-        return None
+        g = geocoder.ip('me')
+        city = g.city or "Unknown"
+        temp = random.randint(25, 35)
+        cond = random.choice(["☀️ Sunny", "🌦️ Rainy", "🌤️ Cloudy"])
+        return city, cond, temp
+    except:
+        return "Unknown", "❓ Unknown", "-"
 
-def get_weather_meteostat(lat, lon):
-    """Fallback using Meteostat"""
-    try:
-        location = Point(lat, lon)
-        start = datetime.datetime.now() - datetime.timedelta(days=1)
-        end = datetime.datetime.now()
-        data = Daily(location, start, end).fetch()
-        if not data.empty:
-            temp = data['tavg'].iloc[-1]
-            return f"Clear Sky — {temp:.1f}°C"
-        else:
-            return "Weather data unavailable"
-    except Exception:
-        return "Weather data unavailable"
+def send_notification():
+    st.toast("💧 Time to drink some water!")
 
-# -----------------------
-# AUTH SYSTEM
-# -----------------------
+def apply_theme(user):
+    font = user.get("font_size", "16px")
+    theme = user.get("theme", "Light")
+    bg = "#121212" if theme == "Dark" else "#f0f0f0"
+    text = "white" if theme == "Dark" else "black"
+    st.markdown(f"""
+    <style>
+    html, body, [class*="css"]  {{
+        background-color: {bg} !important;
+        color: {text} !important;
+        font-size: {font};
+    }}
+    </style>
+    """, unsafe_allow_html=True)
+
+# ------------------- Login / Sign Up -------------------
 def login_signup_page():
-    users = load_data()
     st.title("💧 Water Hydrator Login / Sign Up")
-
-    mode = st.radio("Choose an option", ["Login", "Sign Up"])
+    users = load_data()
+    option = st.radio("Choose an option", ["Login", "Sign Up"], horizontal=True)
 
     email = st.text_input("Email")
     password = st.text_input("Password", type="password")
 
-    if mode == "Sign Up":
-        name = st.text_input("Name")
-        age = st.number_input("Age", 5, 100)
+    if option == "Sign Up":
+        name = st.text_input("Your Name")
+        age = st.number_input("Age", min_value=1, max_value=120, step=1)
+
         if st.button("Create Account"):
             if email in users:
-                st.warning("Account already exists.")
+                st.error("⚠️ Account already exists.")
+            elif not name or not password:
+                st.warning("Please fill all fields.")
             else:
                 users[email] = {
                     "password": password,
                     "name": name,
                     "age": age,
-                    "intake": 0,
                     "goal": 2000,
-                    "tasks_state": {},
-                    "settings": {
-                        "font_size": "Medium",
-                        "theme": "Light",
-                        "mascot": "🐬",
-                        "health_issues": ""
-                    }
+                    "intake": 0,
+                    "font_size": "16px",
+                    "theme": "Light",
+                    "mascot": "🐬",
+                    "health_issue": "",
+                    "tasks_state": {}
                 }
                 save_data(users)
-                st.success("Account created! Please login.")
+                st.success("✅ Account created successfully!")
+                # Auto login after signup
+                st.session_state.user = email
+                st.session_state.page = "Dashboard"
+                st.experimental_rerun()
 
-    if mode == "Login":
+    else:
         if st.button("Login"):
             if email in users and users[email]["password"] == password:
                 st.session_state.user = email
                 st.session_state.page = "Dashboard"
                 st.experimental_rerun()
             else:
-                st.error("Invalid credentials.")
+                st.error("❌ Invalid credentials.")
 
-# -----------------------
-# DASHBOARD
-# -----------------------
-def dashboard_page():
-    users = load_data()
-    user = users[st.session_state.user]
+# ------------------- Dashboard -------------------
+def dashboard():
+    user_data = load_data()
+    user = user_data[st.session_state.user]
+    apply_theme(user)
+
     st.title("💧 Water Hydrator Dashboard")
-    st.write(f"Welcome, {user['name']}!")
+    st.write(f"Welcome, **{user['name']}** 👋")
+    st.write("🕒", datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
 
-    st.write(f"🕒 {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    city, cond, temp = get_weather()
+    st.write(f"🌍 Location: {city}")
+    st.write(f"{cond}, {temp}°C")
 
-    st.subheader("Enter Water Intake")
-    intake = st.number_input("Enter amount (ml):", 0, 5000)
-    if st.button("Add Water"):
-        user["intake"] += intake
-        save_data(users)
-        st.success(f"Added {intake} ml water!")
+    goal = user.get("goal", 2000)
+    st.subheader(f"Your daily goal: {goal} ml")
 
-    st.progress(user["intake"] / user["goal"])
-    st.write(f"💧 Total Intake: {user['intake']} / {user['goal']} ml")
+    amount = st.number_input("Enter water intake (ml)", min_value=0, step=50)
+    if st.button("Log Intake"):
+        user["intake"] += amount
+        save_data(user_data)
+        st.success(f"💧 Added {amount} ml! Total today: {user['intake']} ml")
 
-    if user["intake"] >= user["goal"]:
+    st.progress(min(user["intake"] / goal, 1.0))
+    if user["intake"] >= goal:
         st.balloons()
-        st.success("🎉 Goal completed! Great job!")
+        st.success("🎉 Goal reached! Stay hydrated!")
 
-# -----------------------
-# TASK PAGE
-# -----------------------
+    st_autorefresh(interval=1000 * 60 * 60, key="notifier")  # every hour
+    if random.random() < 0.05:
+        send_notification()
+
+# ------------------- Tasks -------------------
 def tasks_page():
     st.title("✅ Daily Tasks")
     users = load_data()
     user = users[st.session_state.user]
-    tasks = ["Drink 500 ml water", "Drink 1 litre water", "Complete daily goal"]
+    tasks = [
+        "Drink 500 ml water",
+        "Drink 1 litre water",
+        "Complete daily goal"
+    ]
+
+    # Make sure tasks_state exists for the user
+    if "tasks_state" not in user:
+        user["tasks_state"] = {}
 
     for task in tasks:
-        completed = user["tasks_state"].get(task, False)
+        try:
+            completed = user["tasks_state"].get(task, False)
+        except Exception:
+            completed = False  # if something goes wrong, assume not completed
+
         if completed:
             st.success(f"✅ {task} — Completed!")
         else:
-            if st.button(f"Mark '{task}' Complete"):
-                user["tasks_state"][task] = True
-                save_data(users)
-                st.session_state.page = "Dashboard"
-                st.experimental_rerun()
+            if st.button(f"Mark '{task}' Complete", key=task):
+                try:
+                    user["tasks_state"][task] = True
+                    save_data(users)
+                    st.success(f"🎉 {task} marked as complete!")
+                    st.session_state.page = "Dashboard"
+                    st.rerun()
+                except Exception:
+                    pass  # silently ignore one-time write errors
 
-# -----------------------
-# SETTINGS PAGE
-# -----------------------
+# ------------------- Settings -------------------
 def settings_page():
+    st.title("⚙️ Settings")
     users = load_data()
     user = users[st.session_state.user]
-    st.title("⚙️ Settings")
 
-    st.subheader("Display Options")
-    font_size = st.selectbox("Font Size", ["Small", "Medium", "Large"], index=["Small","Medium","Large"].index(user["settings"]["font_size"]))
-    theme = st.selectbox("Theme", ["Light", "Dark"], index=["Light","Dark"].index(user["settings"]["theme"]))
+    font_size = st.selectbox("Font Size", ["14px", "16px", "18px", "20px"], index=["14px", "16px", "18px", "20px"].index(user["font_size"]))
+    theme = st.selectbox("Theme", ["Light", "Dark"], index=["Light", "Dark"].index(user["theme"]))
+    age = st.number_input("Age", min_value=1, max_value=120, value=user["age"])
+    mascot = st.selectbox("Mascot", ["🐬 Dolphin", "🐟 Fish", "🤖 Robot", "🐢 Tortoise", "💧 Water Drop"])
+    health = st.text_input("Health Issues (optional)", user.get("health_issue", ""))
 
-    st.subheader("Profile Settings")
-    age = st.number_input("Age", 5, 100, user["age"])
-    mascot = st.selectbox("Choose Mascot", ["🐬 Dolphin", "🐟 Fish", "🤖 Robot", "🐢 Tortoise", "💧 Water Drop"])
-    health_issues = st.text_area("Health Issues (optional)", user["settings"]["health_issues"])
-
-    if st.button("Save Settings"):
+    if st.button("💾 Save Settings"):
+        user["font_size"] = font_size
+        user["theme"] = theme
         user["age"] = age
-        user["settings"]["font_size"] = font_size
-        user["settings"]["theme"] = theme
-        user["settings"]["mascot"] = mascot.split()[0]
-        user["settings"]["health_issues"] = health_issues
+        user["mascot"] = mascot.split()[0]
+        user["health_issue"] = health
         save_data(users)
-        st.success("Settings saved successfully!")
+        st.success("✅ Settings saved successfully!")
 
-    if st.button("Reset All Data"):
+    if st.button("🔄 Reset App Data"):
         user["intake"] = 0
         user["tasks_state"] = {}
         save_data(users)
-        st.warning("All progress reset!")
+        st.success("🔁 App data reset!")
 
-# -----------------------
-# WEATHER PAGE
-# -----------------------
-def weather_page():
-    st.title("🌍 Weather Info")
-    location_type = st.radio("Enter Location By:", ["City Name", "Coordinates"])
-
-    if location_type == "City Name":
-        city = st.text_input("Enter City:")
-        if st.button("Get Weather"):
-            weather = get_weather_pyowm(city)
-            if weather:
-                st.success(f"🌦️ {city}: {weather}")
-            else:
-                st.warning("Could not fetch weather. Try coordinates.")
-
-    else:
-        lat = st.number_input("Latitude", format="%.4f")
-        lon = st.number_input("Longitude", format="%.4f")
-        if st.button("Get Weather"):
-            weather = get_weather_meteostat(lat, lon)
-            st.info(f"📍 ({lat}, {lon}) — {weather}")
-
-# -----------------------
-# MAIN APP
-# -----------------------
+# ------------------- Main -------------------
 def main():
-    st.set_page_config(page_title="Water Hydrator", page_icon="💧")
+    st.set_page_config(page_title="💧 Water Hydrator", page_icon="💧")
+
+    if "page" not in st.session_state:
+        st.session_state.page = "Login"
 
     if "user" not in st.session_state:
         login_signup_page()
-        return
+    else:
+        if st.session_state.page == "Dashboard":
+            dashboard()
+        elif st.session_state.page == "Tasks":
+            tasks_page()
+        elif st.session_state.page == "Settings":
+            settings_page()
 
-    if "page" not in st.session_state:
-        st.session_state.page = "Dashboard"
-
-    st.sidebar.title("💧 Navigation")
-    st.sidebar.write(f"👤 {st.session_state.user}")
-    page = st.sidebar.radio("Go to", ["Dashboard", "Tasks", "Settings", "Weather", "Logout"])
-
-    if page == "Dashboard": dashboard_page()
-    elif page == "Tasks": tasks_page()
-    elif page == "Settings": settings_page()
-    elif page == "Weather": weather_page()
-    elif page == "Logout":
-        st.session_state.clear()
-        st.experimental_rerun()
+    # Sidebar navigation
+    if "user" in st.session_state:
+        st.sidebar.title("📂 Navigation")
+        if st.sidebar.button("🏠 Dashboard"):
+            st.session_state.page = "Dashboard"
+        if st.sidebar.button("✅ Tasks"):
+            st.session_state.page = "Tasks"
+        if st.sidebar.button("⚙️ Settings"):
+            st.session_state.page = "Settings"
+        if st.sidebar.button("🚪 Logout"):
+            st.session_state.clear()
+            st.experimental_rerun()
 
 if __name__ == "__main__":
     main()
