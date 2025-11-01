@@ -83,14 +83,14 @@ def login_signup_page():
                 # Auto login after signup
                 st.session_state.user = email
                 st.session_state.page = "Dashboard"
-                st.experimental_rerun()
+                #st.experimental_rerun()
 
     else:
         if st.button("Login"):
             if email in users and users[email]["password"] == password:
                 st.session_state.user = email
                 st.session_state.page = "Dashboard"
-                st.experimental_rerun()
+                #st.experimental_rerun()
             else:
                 st.error("❌ Invalid credentials.")
 
@@ -219,3 +219,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
