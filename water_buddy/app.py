@@ -240,48 +240,83 @@ def home_page():
     email = st.session_state.email
     user = users[email]
 
-    # left: profile & quick stats
+    # Left and right layout
     col1, col2 = st.columns([1, 2])
     with col1:
         st.header(user["profile"].get("name") or email)
         st.write(f"Age: {user['profile'].get('age', '')}")
         st.write(f"Coins: {user.get('coins',0)}")
-        # location detection
+
+        # Detect location (auto or manual)
         if "detected_location" not in st.session_state:
             st.session_state.detected_location = detect_location()
         loc = st.session_state.detected_location
-        loc_in = st.text_input("Location (detected / manual)", value=loc or "", key="loc_input")
+        location_input = st.text_input("Your location (detected / manual)", value=loc or "", key="loc_input")
+
+        # Detect current weather using Meteostat
+        try:
+            from meteostat import Stations, Daily
+            import pandas as pd
+            from datetime import datetime
+
+            if location_input:
+                stations = Stations().nearby_name(location_input)
+                station = stations.fetch(1)
+                if not station.empty:
+                    lat = station.iloc[0].lat
+                    lon = station.iloc[0].lon
+                    # Get today's weather data
+                    start = end = datetime.today()
+                    data = Daily(station, start, end)
+                    data = data.fetch()
+                    if not data.empty:
+                        temp_c = round(data['tavg'].iloc[0], 1) if 'tavg' in data.columns else 30
+                        st.success(f"🌡 Current Temp at {location_input}: {temp_c}°C")
+                    else:
+                        temp_c = 30
+                        st.warning("Couldn’t fetch temperature data. Using default 30°C.")
+                else:
+                    temp_c = 30
+                    st.warning("No nearby weather station found. Using default temperature.")
+            else:
+                temp_c = 30
+                st.warning("Enter a location to detect weather.")
+        except Exception as e:
+            st.error("Error fetching weather data.")
+            temp_c = 30
+
+        # Show current date/time
         st.write("Local time:", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
 
     with col2:
-        st.subheader("Climate & Goal")
-        climate = st.selectbox("Choose climate", ["☀️ Sunny","🌤 Cloudy","🌧 Rainy","❄️ Cold","🌫 Humid","🌪 Windy"], key="climate")
-        temp = st.number_input("Estimated temp (°C)", min_value=-30, max_value=60, value=30, key="temp_input")
-        # calculate goal
-        goal = calculate_daily_goal(age=user["profile"].get("age",18), health_issues=user["profile"].get("health_issues",""), temp_c=temp)
-        st.write(f"Daily goal: **{goal} ml**")
-        st.write(f"Today's intake: **{user.get('water_intake',0)} ml**")
+        # Calculate and display goal dynamically
+        goal = calculate_daily_goal(
+            age=user["profile"].get("age",18),
+            health_issues=user["profile"].get("health_issues",""),
+            temp_c=temp_c
+        )
+        st.subheader("Your Water Goal 💧")
+        st.write(f"Based on current temperature: **{temp_c}°C**")
+        st.write(f"Recommended Daily Goal: **{goal} ml**")
+        st.write(f"Today's Intake: **{user.get('water_intake',0)} ml**")
 
-        # Logging input and animation
+        # Water logging
         intake_amt = st.number_input("Log water (ml)", min_value=0, step=50, value=250, key="log_input")
         if st.button("Add Intake"):
             old = user.get("water_intake",0)
             user["water_intake"] = old + int(intake_amt)
             user["history"].append({"time": datetime.now().isoformat(), "amount": int(intake_amt)})
-            # mark any tasks that requested this exact amount as done?
             save_users(users)
             placeholder = st.empty()
             animate_fill(old, user["water_intake"], goal, placeholder)
             st.success(f"Logged {int(intake_amt)} ml.")
-            # if task was triggered previously (like from tasks page) and now meets amount, mark that
-            save_users(users)
 
-        # Progress bar static view
+        # Progress bar
         pct = min(round((user.get("water_intake",0)/goal)*100),100) if goal else 0
         st.progress(pct)
         if pct >= 100:
             st.balloons()
-            st.info("Goal achieved! Well done.")
+            st.info("Goal achieved! Well done 💦")
 
 # ---------- Tasks page ----------
 def tasks_page():
@@ -427,3 +462,4 @@ else:
         tasks_page()
     elif st.session_state.page == "settings":
         settings_page()
+
