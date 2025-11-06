@@ -85,11 +85,19 @@ def apply_theme_and_font():
         h1, h2, h3, h4, h5, h6, p, div, span, label {
             color: #f5f5f5 !important;
         }
+        /* Buttons */
         button[kind="primary"], .stButton>button {
             background-color: #1f1f1f !important;
             color: #ffffff !important;
             border: 1px solid #f5f5f5 !important;
             border-radius: 8px;
+        }
+        /* Input boxes */
+        .stTextInput>div>div>input, .stNumberInput input, .stSelectbox>div>div>div>div {
+            background-color: #1f1f1f !important;
+            color: #ffffff !important;
+            border: 1px solid #888 !important;
+            border-radius: 6px;
         }
         </style>
         """, unsafe_allow_html=True)
@@ -104,16 +112,24 @@ def apply_theme_and_font():
         h1, h2, h3, h4, h5, h6, p, div, span, label {
             color: #004d4d !important;
         }
+        /* Buttons */
         button[kind="primary"], .stButton>button {
             background-color: #00bfa6 !important;
             color: #ffffff !important;
             border: 1px solid #007f73 !important;
             border-radius: 8px;
         }
+        /* Input boxes */
+        .stTextInput>div>div>input, .stNumberInput input, .stSelectbox>div>div>div>div {
+            background-color: #b2f7f2 !important;
+            color: #004d4d !important;
+            border: 1px solid #007f73 !important;
+            border-radius: 6px;
+        }
         </style>
         """, unsafe_allow_html=True)
 
-    else:  # Light
+    else:  # Light theme
         st.markdown("""
         <style>
         .stApp {
@@ -123,11 +139,19 @@ def apply_theme_and_font():
         h1, h2, h3, h4, h5, h6, p, div, span, label {
             color: #000000 !important;
         }
+        /* Buttons */
         button[kind="primary"], .stButton>button {
             background-color: #007bff !important;
             color: #ffffff !important;
             border: none;
             border-radius: 8px;
+        }
+        /* Input boxes */
+        .stTextInput>div>div>input, .stNumberInput input, .stSelectbox>div>div>div>div {
+            background-color: #f9f9f9 !important;
+            color: #000000 !important;
+            border: 1px solid #ccc !important;
+            border-radius: 6px;
         }
         </style>
         """, unsafe_allow_html=True)
@@ -391,6 +415,7 @@ elif st.session_state["page"] == "tasks":
     tasks_page()
 elif st.session_state["page"] == "settings":
     settings_page()
+
 
 
 
