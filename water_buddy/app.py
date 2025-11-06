@@ -152,19 +152,31 @@ def home_page():
 
 def tasks_page():
     st.title("🧾 Daily Hydration Tasks")
-    st.write("Here are some hydration challenges to complete today:")
-    tasks = [
-        "💦 Drink 1 glass of water as soon as you wake up.",
-        "🕒 Refill your water bottle every 2 hours.",
-        "🚶 Take a short walk and drink water after.",
-        "🥗 Eat a hydrating fruit like watermelon or cucumber.",
-        "📱 Set a reminder to drink water every hour."
-    ]
-    for t in tasks:
-        st.checkbox(t, key=t)
+    st.write("Complete hydration challenges to stay on track:")
+
+    tasks = {
+        "Refill your water bottle every 2 hours.",
+        "Take a short walk and drink water after.",
+        "Eat a hydrating fruit like watermelon or cucumber.",
+        "Set a reminder to drink water every hour."
+        "Drink 200ml of water now"
+        "Get hydrated by drinking 500ml of water now"
+    }
+
+    for task, amount in tasks.items():
+        if task not in st.session_state:
+            st.session_state[task] = False
+
+        if st.checkbox(task, value=st.session_state[task], key=task):
+            st.session_state["selected_task"] = task
+            st.session_state["required_amount"] = amount
+            st.session_state["from_task"] = True
+            st.session_state[task] = True
+            st.session_state["page"] = "home"
+            st.rerun()
 
     st.button("🏠 Back to Home", on_click=lambda: st.session_state.update(page="home"))
-    st.button("⚙️ Settings", on_click=lambda: st.session_state.update(page="settings"))
+    st.button("⚙️ Settings", on_click=lambda: st.session_state.update(page="settings"))        "Drink 1 glass of water as soon as you wake up.",
 
 
 def settings_page():
@@ -237,6 +249,7 @@ elif st.session_state["page"] == "tasks":
     tasks_page()
 elif st.session_state["page"] == "settings":
     settings_page()
+
 
 
 
