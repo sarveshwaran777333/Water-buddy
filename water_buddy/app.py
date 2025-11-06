@@ -75,16 +75,21 @@ def apply_theme_and_font():
     theme = st.session_state.get("theme", "Light")
     font = st.session_state.get("font_size", "Medium")
 
-    # 🌈 Apply theme background + text colors
     if theme == "Dark":
         st.markdown("""
         <style>
         .stApp {
-            background-color: #1e1e1e;
-            color: #f1f1f1;
+            background-color: #121212;
+            color: #f5f5f5;
         }
-        h1, h2, h3, h4, h5, h6, p, div, span {
-            color: #f1f1f1 !important;
+        h1, h2, h3, h4, h5, h6, p, div, span, label {
+            color: #f5f5f5 !important;
+        }
+        button[kind="primary"], .stButton>button {
+            background-color: #1f1f1f !important;
+            color: #ffffff !important;
+            border: 1px solid #f5f5f5 !important;
+            border-radius: 8px;
         }
         </style>
         """, unsafe_allow_html=True)
@@ -96,8 +101,14 @@ def apply_theme_and_font():
             background-color: #d9fdfc;
             color: #004d4d;
         }
-        h1, h2, h3, h4, h5, h6, p, div, span {
+        h1, h2, h3, h4, h5, h6, p, div, span, label {
             color: #004d4d !important;
+        }
+        button[kind="primary"], .stButton>button {
+            background-color: #00bfa6 !important;
+            color: #ffffff !important;
+            border: 1px solid #007f73 !important;
+            border-radius: 8px;
         }
         </style>
         """, unsafe_allow_html=True)
@@ -109,19 +120,26 @@ def apply_theme_and_font():
             background-color: #ffffff;
             color: #000000;
         }
-        h1, h2, h3, h4, h5, h6, p, div, span {
+        h1, h2, h3, h4, h5, h6, p, div, span, label {
             color: #000000 !important;
+        }
+        button[kind="primary"], .stButton>button {
+            background-color: #007bff !important;
+            color: #ffffff !important;
+            border: none;
+            border-radius: 8px;
         }
         </style>
         """, unsafe_allow_html=True)
 
-    # 🔤 Apply font size
+    # 🔤 Font size
     if font == "Small":
         st.markdown("<style>.stApp {font-size:14px;}</style>", unsafe_allow_html=True)
     elif font == "Medium":
         st.markdown("<style>.stApp {font-size:16px;}</style>", unsafe_allow_html=True)
     else:
         st.markdown("<style>.stApp {font-size:18px;}</style>", unsafe_allow_html=True)
+
 # ---------------------------
 # Pages
 # ---------------------------
@@ -373,6 +391,7 @@ elif st.session_state["page"] == "tasks":
     tasks_page()
 elif st.session_state["page"] == "settings":
     settings_page()
+
 
 
 
