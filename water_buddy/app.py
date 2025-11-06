@@ -207,52 +207,75 @@ def tasks_page():
 
 def settings_page():
     st.title("⚙️ Settings")
+
     users = load_users()
     username = st.session_state["user"]
     user_data = users[username]
 
+    # ------------------------
     # Theme and Font Selection
-    theme = st.selectbox("Select Theme:", ["Light", "Dark", "Aqua"],
-                         index=["Light", "Dark", "Aqua"].index(user_data.get("theme", "Light")))
-    font_size = st.selectbox("Font Size:", ["Small", "Medium", "Large"],
-                             index=["Small", "Medium", "Large"].index(user_data.get("font_size", "Medium")))
+    # ------------------------
+    theme = st.selectbox(
+        "Select Theme:",
+        ["Light", "Dark", "Aqua"],
+        index=["Light", "Dark", "Aqua"].index(user_data.get("theme", "Light")),
+        key="theme_select"
+    )
 
+    font_size = st.selectbox(
+        "Font Size:",
+        ["Small", "Medium", "Large"],
+        index=["Small", "Medium", "Large"].index(user_data.get("font_size", "Medium")),
+        key="font_select"
+    )
+
+    # ------------------------
+    # Apply Settings
+    # ------------------------
     if st.button("💾 Apply Settings"):
         user_data["theme"] = theme
         user_data["font_size"] = font_size
         save_users(users)
+        st.session_state["theme"] = theme
+        st.session_state["font_size"] = font_size
         st.success("Settings updated!")
+        st.rerun()  # 🔄 Forces Streamlit to apply new CSS
 
-    # Manual reset of daily log
+    # ------------------------
+    # Reset Options
+    # ------------------------
     if st.button("🔁 Reset Daily Water Log"):
         user_data["logged"] = 0
         save_users(users)
         st.success("Daily log reset!")
 
-    # Reset all settings to default
     if st.button("♻️ Reset Settings to Default"):
-        user_data["theme"] = "Light"
-        user_data["font_size"] = "Medium"
-        user_data["goal"] = 2000
+        user_data.update({"theme": "Light", "font_size": "Medium", "goal": 2000})
         save_users(users)
-        st.success("All settings restored to default!")
+        st.success("Settings restored to default!")
+        st.rerun()
 
     if st.button("🔒 Logout"):
         st.session_state.clear()
         st.session_state["page"] = "login"
         st.rerun()
 
-    # Apply theme effects visually
-    if theme == "Dark":
+    # ------------------------
+    # Apply CSS (dynamic)
+    # ------------------------
+    theme_to_use = st.session_state.get("theme", user_data.get("theme", "Light"))
+    font_to_use = st.session_state.get("font_size", user_data.get("font_size", "Medium"))
+
+    if theme_to_use == "Dark":
         st.markdown("<style>body {color: white; background-color: #1e1e1e;}</style>", unsafe_allow_html=True)
-    elif theme == "Aqua":
+    elif theme_to_use == "Aqua":
         st.markdown("<style>body {color: #005f73; background-color: #d9fdfc;}</style>", unsafe_allow_html=True)
     else:
         st.markdown("<style>body {color: black; background-color: white;}</style>", unsafe_allow_html=True)
 
-    if font_size == "Small":
+    if font_to_use == "Small":
         st.markdown("<style>body {font-size: 14px;}</style>", unsafe_allow_html=True)
-    elif font_size == "Medium":
+    elif font_to_use == "Medium":
         st.markdown("<style>body {font-size: 16px;}</style>", unsafe_allow_html=True)
     else:
         st.markdown("<style>body {font-size: 18px;}</style>", unsafe_allow_html=True)
@@ -276,3 +299,4 @@ elif st.session_state["page"] == "tasks":
     tasks_page()
 elif st.session_state["page"] == "settings":
     settings_page()
+
