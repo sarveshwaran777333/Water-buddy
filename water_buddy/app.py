@@ -177,15 +177,14 @@ def tasks_page():
     st.title("🧾 Daily Hydration Tasks")
     st.write("Complete hydration challenges to stay on track:")
 
-    tasks = {
-        "Refill your water bottle every 2 hours.",
-        "Take a short walk and drink water after.",
-        "Eat a hydrating fruit like watermelon or cucumber.",
-        "Set a reminder to drink water every hour."
-        "Drink 200ml of water now"
-        "Get hydrated by drinking 500ml of water now"
-    }
-
+    tasks = [
+    "Refill your water bottle every 2 hours.",
+    "Take a short walk and drink water after.",
+    "Eat a hydrating fruit like watermelon or cucumber.",
+    "Set a reminder to drink water every hour.",
+    "Drink 200ml of water now.",
+    "Get hydrated by drinking 500ml of water now."
+]
     for task, amount in tasks.items():
         if task not in st.session_state:
             st.session_state[task] = False
@@ -272,6 +271,7 @@ elif st.session_state["page"] == "tasks":
     tasks_page()
 elif st.session_state["page"] == "settings":
     settings_page()
+
 
 
 
