@@ -177,14 +177,18 @@ def tasks_page():
     st.title("🧾 Daily Hydration Tasks")
     st.write("Complete hydration challenges to stay on track:")
 
-    tasks = [
-    "Refill your water bottle every 2 hours.",
-    "Take a short walk and drink water after.",
-    "Eat a hydrating fruit like watermelon or cucumber.",
-    "Set a reminder to drink water every hour.",
-    "Drink 200ml of water now.",
-    "Get hydrated by drinking 500ml of water now."
-]
+    # ✅ Use a dictionary: task → required amount
+    tasks = {
+        "Drink 1 glass of water as soon as you wake up.": 200,
+        "Refill your water bottle every 2 hours.": 250,
+        "Take a short walk and drink water after.": 150,
+        "Eat a hydrating fruit like watermelon or cucumber.": 100,
+        "Set a reminder to drink water every hour.": 0,
+        "Drink 200ml of water now.": 200,
+        "Get hydrated by drinking 500ml of water now.": 500
+    }
+
+    # ✅ Loop through tasks
     for task, amount in tasks.items():
         if task not in st.session_state:
             st.session_state[task] = False
@@ -197,8 +201,9 @@ def tasks_page():
             st.session_state["page"] = "home"
             st.rerun()
 
+    # ✅ Navigation buttons (clean)
     st.button("🏠 Back to Home", on_click=lambda: st.session_state.update(page="home"))
-    st.button("⚙️ Settings", on_click=lambda: st.session_state.update(page="settings"))        "Drink 1 glass of water as soon as you wake up.",
+    st.button("⚙️ Settings", on_click=lambda: st.session_state.update(page="settings"))
 
 
 def settings_page():
@@ -271,6 +276,7 @@ elif st.session_state["page"] == "tasks":
     tasks_page()
 elif st.session_state["page"] == "settings":
     settings_page()
+
 
 
 
