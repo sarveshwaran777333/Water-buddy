@@ -73,96 +73,99 @@ def save_users(users):
 
 def apply_theme_and_font():
     theme = st.session_state.get("theme", "Light")
-    font = st.session_state.get("font_size", "Medium")
+    font_size = st.session_state.get("font_size", 16)  # default to 16px if missing
 
+    # -------------------------------
+    # Theme styling
+    # -------------------------------
     if theme == "Dark":
-        st.markdown("""
+        st.markdown(f"""
         <style>
-        .stApp {
+        .stApp {{
             background-color: #121212;
             color: #f5f5f5;
-        }
-        h1, h2, h3, h4, h5, h6, p, div, span, label {
+            font-size: {font_size}px !important;
+        }}
+        h1, h2, h3, h4, h5, h6, p, div, span, label {{
             color: #f5f5f5 !important;
-        }
+            font-size: {font_size}px !important;
+        }}
         /* Buttons */
-        button[kind="primary"], .stButton>button {
+        .stButton>button {{
             background-color: #1f1f1f !important;
             color: #ffffff !important;
             border: 1px solid #f5f5f5 !important;
             border-radius: 8px;
-        }
+            font-size: {font_size}px !important;
+        }}
         /* Input boxes */
-        .stTextInput>div>div>input, .stNumberInput input, .stSelectbox>div>div>div>div {
+        .stTextInput>div>div>input, .stNumberInput input, .stSelectbox>div>div>div>div {{
             background-color: #1f1f1f !important;
             color: #ffffff !important;
             border: 1px solid #888 !important;
             border-radius: 6px;
-        }
+            font-size: {font_size}px !important;
+        }}
         </style>
         """, unsafe_allow_html=True)
 
     elif theme == "Aqua":
-        st.markdown("""
+        st.markdown(f"""
         <style>
-        .stApp {
+        .stApp {{
             background-color: #d9fdfc;
             color: #004d4d;
-        }
-        h1, h2, h3, h4, h5, h6, p, div, span, label {
+            font-size: {font_size}px !important;
+        }}
+        h1, h2, h3, h4, h5, h6, p, div, span, label {{
             color: #004d4d !important;
-        }
-        /* Buttons */
-        button[kind="primary"], .stButton>button {
+            font-size: {font_size}px !important;
+        }}
+        .stButton>button {{
             background-color: #00bfa6 !important;
             color: #ffffff !important;
             border: 1px solid #007f73 !important;
             border-radius: 8px;
-        }
-        /* Input boxes */
-        .stTextInput>div>div>input, .stNumberInput input, .stSelectbox>div>div>div>div {
+            font-size: {font_size}px !important;
+        }}
+        .stTextInput>div>div>input, .stNumberInput input, .stSelectbox>div>div>div>div {{
             background-color: #b2f7f2 !important;
             color: #004d4d !important;
             border: 1px solid #007f73 !important;
             border-radius: 6px;
-        }
+            font-size: {font_size}px !important;
+        }}
         </style>
         """, unsafe_allow_html=True)
 
     else:  # Light theme
-        st.markdown("""
+        st.markdown(f"""
         <style>
-        .stApp {
+        .stApp {{
             background-color: #ffffff;
             color: #000000;
-        }
-        h1, h2, h3, h4, h5, h6, p, div, span, label {
+            font-size: {font_size}px !important;
+        }}
+        h1, h2, h3, h4, h5, h6, p, div, span, label {{
             color: #000000 !important;
-        }
-        /* Buttons */
-        button[kind="primary"], .stButton>button {
+            font-size: {font_size}px !important;
+        }}
+        .stButton>button {{
             background-color: #007bff !important;
             color: #ffffff !important;
             border: none;
             border-radius: 8px;
-        }
-        /* Input boxes */
-        .stTextInput>div>div>input, .stNumberInput input, .stSelectbox>div>div>div>div {
+            font-size: {font_size}px !important;
+        }}
+        .stTextInput>div>div>input, .stNumberInput input, .stSelectbox>div>div>div>div {{
             background-color: #f9f9f9 !important;
             color: #000000 !important;
             border: 1px solid #ccc !important;
             border-radius: 6px;
-        }
+            font-size: {font_size}px !important;
+        }}
         </style>
         """, unsafe_allow_html=True)
-
-    # 🔤 Font size
-    if font == "Small":
-        st.markdown("<style>.stApp {font-size:14px;}</style>", unsafe_allow_html=True)
-    elif font == "Medium":
-        st.markdown("<style>.stApp {font-size:16px;}</style>", unsafe_allow_html=True)
-    else:
-        st.markdown("<style>.stApp {font-size:18px;}</style>", unsafe_allow_html=True)
 
 # ---------------------------
 # Pages
@@ -170,8 +173,7 @@ def apply_theme_and_font():
 
 def login_page():
     st.title("💧 Water Buddy Login")
-
-    # ✅ Custom CSS for Login button
+    apply_theme_and_font()
     st.markdown("""
         <style>
         div.stButton > button:first-child {
@@ -207,6 +209,7 @@ def login_page():
         st.session_state["page"] = "signup"
 
 def signup_page():
+    apply_theme_and_font()
     st.title("🧊 Create Your Water Buddy Account")
     users = load_users()
     username = st.text_input("Choose a Username")
@@ -229,6 +232,7 @@ def signup_page():
 
 
 def home_page():
+    apply_theme_and_font()
     st.title("🏠 Water Buddy Home")
 
     users = load_users()
@@ -285,6 +289,7 @@ def home_page():
 
 
 def tasks_page():
+    apply_theme_and_font()
     st.title("🧾 Daily Hydration Tasks")
     st.write("Complete hydration challenges to stay on track:")
 
@@ -317,6 +322,7 @@ def tasks_page():
 
 
 def settings_page():
+    apply_theme_and_font()
     st.title("⚙️ Settings")
 
     users = load_users()
@@ -324,8 +330,10 @@ def settings_page():
     user_data = users[username]
 
     # ------------------------
-    # Theme and Font Selection
+    # 🎨 Theme and Font Selection
     # ------------------------
+    st.subheader("Appearance")
+
     theme = st.selectbox(
         "Select Theme:",
         ["Light", "Dark", "Aqua"],
@@ -333,27 +341,44 @@ def settings_page():
         key="theme_select"
     )
 
+    # Common MS Word-style font sizes
+    word_font_sizes = [8, 9, 10, 11, 12, 14, 16, 18, 20, 22, 24, 28, 32]
+    default_font_size = user_data.get("font_size", 16)
+    if isinstance(default_font_size, str):
+        try:
+            default_font_size = int(default_font_size)
+        except:
+            default_font_size = 16
+
     font_size = st.selectbox(
-        "Font Size:",
-        ["Small", "Medium", "Large"],
-        index=["Small", "Medium", "Large"].index(user_data.get("font_size", "Medium")),
+        "Font Size (like MS Word):",
+        word_font_sizes,
+        index=word_font_sizes.index(default_font_size) if default_font_size in word_font_sizes else 5,
         key="font_select"
     )
 
+    custom_size = st.number_input(
+        "Or enter a custom font size:",
+        min_value=8,
+        max_value=72,
+        value=font_size,
+        step=1
+    )
+
     # ------------------------
-    # Apply Settings
+    # 💾 Apply Settings
     # ------------------------
     if st.button("💾 Apply Settings"):
         user_data["theme"] = theme
-        user_data["font_size"] = font_size
+        user_data["font_size"] = custom_size
         save_users(users)
         st.session_state["theme"] = theme
-        st.session_state["font_size"] = font_size
-        st.success("Settings updated!")
-        st.rerun()  # 🔄 Forces Streamlit to apply new CSS
+        st.session_state["font_size"] = custom_size
+        st.success("Settings updated successfully!")
+        st.rerun()
 
     # ------------------------
-    # Reset Options
+    # 🔁 Reset Options
     # ------------------------
     if st.button("🔁 Reset Daily Water Log"):
         user_data["logged"] = 0
@@ -361,7 +386,7 @@ def settings_page():
         st.success("Daily log reset!")
 
     if st.button("♻️ Reset Settings to Default"):
-        user_data.update({"theme": "Light", "font_size": "Medium", "goal": 2000})
+        user_data.update({"theme": "Light", "font_size": 16, "goal": 2000})
         save_users(users)
         st.success("Settings restored to default!")
         st.rerun()
@@ -372,24 +397,42 @@ def settings_page():
         st.rerun()
 
     # ------------------------
-    # Apply CSS (dynamic)
+    # 🖌️ Apply CSS (Dynamic Theme + Font)
     # ------------------------
     theme_to_use = st.session_state.get("theme", user_data.get("theme", "Light"))
-    font_to_use = st.session_state.get("font_size", user_data.get("font_size", "Medium"))
+    font_to_use = st.session_state.get("font_size", user_data.get("font_size", 16))
+
+    css = f"""
+    <style>
+    body, .stApp {{
+        font-size: {font_to_use}px !important;
+    }}
+    h1,h2,h3,h4,h5,h6,p,div,span,label {{
+        font-size: {font_to_use}px !important;
+    }}
+    """
 
     if theme_to_use == "Dark":
-        st.markdown("<style>body {color: white; background-color: #1e1e1e;}</style>", unsafe_allow_html=True)
+        css += """
+        .stApp { background-color: #1e1e1e; color: white; }
+        .stButton>button { background-color: #333; color: white; border-radius: 8px; }
+        .stTextInput>div>div>input { background-color: #222; color: white; border-radius: 6px; }
+        """
     elif theme_to_use == "Aqua":
-        st.markdown("<style>body {color: #005f73; background-color: #d9fdfc;}</style>", unsafe_allow_html=True)
+        css += """
+        .stApp { background-color: #d9fdfc; color: #005f73; }
+        .stButton>button { background-color: #00bfa6; color: white; border-radius: 8px; }
+        .stTextInput>div>div>input { background-color: #b2f7f2; color: #005f73; border-radius: 6px; }
+        """
     else:
-        st.markdown("<style>body {color: black; background-color: white;}</style>", unsafe_allow_html=True)
+        css += """
+        .stApp { background-color: white; color: black; }
+        .stButton>button { background-color: #007bff; color: white; border-radius: 8px; }
+        .stTextInput>div>div>input { background-color: #f9f9f9; color: black; border-radius: 6px; }
+        """
 
-    if font_to_use == "Small":
-        st.markdown("<style>body {font-size: 14px;}</style>", unsafe_allow_html=True)
-    elif font_to_use == "Medium":
-        st.markdown("<style>body {font-size: 16px;}</style>", unsafe_allow_html=True)
-    else:
-        st.markdown("<style>body {font-size: 18px;}</style>", unsafe_allow_html=True)
+    css += "</style>"
+    st.markdown(css, unsafe_allow_html=True)
     st.button("🏠 Back to Home", on_click=lambda: st.session_state.update(page="home"))
     st.button("🧾 Go to Task Page", on_click=lambda: st.session_state.update(page="tasks"))
 
@@ -415,6 +458,7 @@ elif st.session_state["page"] == "tasks":
     tasks_page()
 elif st.session_state["page"] == "settings":
     settings_page()
+
 
 
 
