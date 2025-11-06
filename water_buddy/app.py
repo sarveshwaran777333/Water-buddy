@@ -4,10 +4,6 @@ from datetime import datetime, timedelta
 from meteostat import Stations, Daily
 from geopy.geocoders import Nominatim
 
-# ---------------------------
-# Utility Functions
-# ---------------------------
-
 def get_coordinates_from_city(city):
     """Get latitude and longitude from a city name."""
     try:
@@ -27,7 +23,7 @@ def get_weather_data(lat, lon):
     """Fetch weather data from meteostat."""
     try:
         end = datetime.today()
-        start = end - timedelta(days=1)  # ✅ fallback range
+        start = end - timedelta(days=1)
         stations = Stations()
         station = stations.nearby(lat, lon).fetch(1)
         if station.empty:
@@ -241,5 +237,6 @@ elif st.session_state["page"] == "tasks":
     tasks_page()
 elif st.session_state["page"] == "settings":
     settings_page()
+
 
 
