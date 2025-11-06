@@ -75,34 +75,53 @@ def apply_theme_and_font():
     theme = st.session_state.get("theme", "Light")
     font = st.session_state.get("font_size", "Medium")
 
-    # Apply background & text
+    # 🌈 Apply theme background + text colors
     if theme == "Dark":
         st.markdown("""
         <style>
-        .stApp {background-color: #1e1e1e; color: white;}
-        </style>
-        """, unsafe_allow_html=True)
-    elif theme == "Aqua":
-        st.markdown("""
-        <style>
-        .stApp {background-color: #d9fdfc; color: #003f5c;}
-        </style>
-        """, unsafe_allow_html=True)
-    else:
-        st.markdown("""
-        <style>
-        .stApp {background-color: white; color: black;}
+        .stApp {
+            background-color: #1e1e1e;
+            color: #f1f1f1;
+        }
+        h1, h2, h3, h4, h5, h6, p, div, span {
+            color: #f1f1f1 !important;
+        }
         </style>
         """, unsafe_allow_html=True)
 
-    # Apply font size
+    elif theme == "Aqua":
+        st.markdown("""
+        <style>
+        .stApp {
+            background-color: #d9fdfc;
+            color: #004d4d;
+        }
+        h1, h2, h3, h4, h5, h6, p, div, span {
+            color: #004d4d !important;
+        }
+        </style>
+        """, unsafe_allow_html=True)
+
+    else:  # Light
+        st.markdown("""
+        <style>
+        .stApp {
+            background-color: #ffffff;
+            color: #000000;
+        }
+        h1, h2, h3, h4, h5, h6, p, div, span {
+            color: #000000 !important;
+        }
+        </style>
+        """, unsafe_allow_html=True)
+
+    # 🔤 Apply font size
     if font == "Small":
         st.markdown("<style>.stApp {font-size:14px;}</style>", unsafe_allow_html=True)
     elif font == "Medium":
         st.markdown("<style>.stApp {font-size:16px;}</style>", unsafe_allow_html=True)
     else:
         st.markdown("<style>.stApp {font-size:18px;}</style>", unsafe_allow_html=True)
-
 # ---------------------------
 # Pages
 # ---------------------------
@@ -354,6 +373,7 @@ elif st.session_state["page"] == "tasks":
     tasks_page()
 elif st.session_state["page"] == "settings":
     settings_page()
+
 
 
 
