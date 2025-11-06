@@ -71,6 +71,37 @@ def save_users(users):
     with open("users.json", "w") as f:
         json.dump(users, f, indent=4)
 
+def apply_theme_and_font():
+    theme = st.session_state.get("theme", "Light")
+    font = st.session_state.get("font_size", "Medium")
+
+    # Apply background & text
+    if theme == "Dark":
+        st.markdown("""
+        <style>
+        .stApp {background-color: #1e1e1e; color: white;}
+        </style>
+        """, unsafe_allow_html=True)
+    elif theme == "Aqua":
+        st.markdown("""
+        <style>
+        .stApp {background-color: #d9fdfc; color: #003f5c;}
+        </style>
+        """, unsafe_allow_html=True)
+    else:
+        st.markdown("""
+        <style>
+        .stApp {background-color: white; color: black;}
+        </style>
+        """, unsafe_allow_html=True)
+
+    # Apply font size
+    if font == "Small":
+        st.markdown("<style>.stApp {font-size:14px;}</style>", unsafe_allow_html=True)
+    elif font == "Medium":
+        st.markdown("<style>.stApp {font-size:16px;}</style>", unsafe_allow_html=True)
+    else:
+        st.markdown("<style>.stApp {font-size:18px;}</style>", unsafe_allow_html=True)
 
 # ---------------------------
 # Pages
@@ -282,6 +313,11 @@ def settings_page():
     st.button("🏠 Back to Home", on_click=lambda: st.session_state.update(page="home"))
     st.button("🧾 Go to Task Page", on_click=lambda: st.session_state.update(page="tasks"))
 
+if "page" not in st.session_state:
+    st.session_state["page"] = "login"
+
+apply_theme_and_font()
+
 # ---------------------------
 # Main App Controller
 # ---------------------------
@@ -299,4 +335,5 @@ elif st.session_state["page"] == "tasks":
     tasks_page()
 elif st.session_state["page"] == "settings":
     settings_page()
+
 
