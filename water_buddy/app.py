@@ -256,7 +256,8 @@ def settings_page():
         st.markdown("<style>body {font-size: 16px;}</style>", unsafe_allow_html=True)
     else:
         st.markdown("<style>body {font-size: 18px;}</style>", unsafe_allow_html=True)
-
+st.button("🏠 Back to Home", on_click=lambda: st.session_state.update(page="home"))
+st.button("🧾 Go to Task Page", on_click=lambda: st.session_state.update(page="tasks"))
 
 # ---------------------------
 # Main App Controller
@@ -275,6 +276,7 @@ elif st.session_state["page"] == "tasks":
     tasks_page()
 elif st.session_state["page"] == "settings":
     settings_page()
+
 
 
 
