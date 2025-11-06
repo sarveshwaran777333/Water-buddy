@@ -1,6 +1,6 @@
 import streamlit as st
 import json, os, hashlib
-from datetime import datetime, date
+from datetime import datetime, timedelta
 from meteostat import Stations, Daily
 from geopy.geocoders import Nominatim
 
@@ -26,7 +26,8 @@ def get_coordinates_from_city(city):
 def get_weather_data(lat, lon):
     """Fetch weather data from meteostat."""
     try:
-        start = end = datetime.today()
+        end = datetime.today()
+        start = end - timedelta(days=1)  # ✅ fallback range
         stations = Stations()
         station = stations.nearby(lat, lon).fetch(1)
         if station.empty:
@@ -36,16 +37,15 @@ def get_weather_data(lat, lon):
         station_id = station.index[0]
         data = Daily(station_id, start, end).fetch()
 
-        if not data.empty:
-            temperature = round(data['tavg'].iloc[0], 1)
+        if not data.empty and 'tavg' in data.columns:
+            temperature = round(data['tavg'].dropna().iloc[-1], 1)
             return temperature
         else:
-            st.warning("No weather data available for today.")
-            return None
+            st.warning("No recent weather data available. Using default temperature 30°C.")
+            return 30.0  # default fallback
     except Exception as e:
         st.error(f"Error fetching weather data: {e}")
         return None
-
 def set_goal_based_on_climate(temp):
     """Adjust water goal based on temperature."""
     if temp is None:
@@ -241,4 +241,5 @@ elif st.session_state["page"] == "tasks":
     tasks_page()
 elif st.session_state["page"] == "settings":
     settings_page()
+
 
