@@ -177,7 +177,7 @@ def tasks_page():
     st.title("🧾 Daily Hydration Tasks")
     st.write("Complete hydration challenges to stay on track:")
 
-    # ✅ Use a dictionary: task → required amount
+    # ✅ Task: required water amount
     tasks = {
         "Drink 1 glass of water as soon as you wake up.": 200,
         "Refill your water bottle every 2 hours.": 250,
@@ -188,20 +188,19 @@ def tasks_page():
         "Get hydrated by drinking 500ml of water now.": 500
     }
 
-    # ✅ Loop through tasks
     for task, amount in tasks.items():
-        if task not in st.session_state:
-            st.session_state[task] = False
+        # ✅ Unique widget key
+        key_name = f"task_checkbox_{task}"
+        checked = st.checkbox(task, key=key_name)
 
-        if st.checkbox(task, value=st.session_state[task], key=task):
+        if checked and not st.session_state.get(f"task_done_{task}", False):
             st.session_state["selected_task"] = task
             st.session_state["required_amount"] = amount
             st.session_state["from_task"] = True
-            st.session_state[task] = True
+            st.session_state[f"task_done_{task}"] = True  # Mark as completed
             st.session_state["page"] = "home"
             st.rerun()
 
-    # ✅ Navigation buttons (clean)
     st.button("🏠 Back to Home", on_click=lambda: st.session_state.update(page="home"))
     st.button("⚙️ Settings", on_click=lambda: st.session_state.update(page="settings"))
 
@@ -276,6 +275,7 @@ elif st.session_state["page"] == "tasks":
     tasks_page()
 elif st.session_state["page"] == "settings":
     settings_page()
+
 
 
 
