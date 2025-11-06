@@ -26,7 +26,7 @@ def get_coordinates_from_city(city):
 def get_weather_data(lat, lon):
     """Fetch weather data from meteostat."""
     try:
-        start = end = date.today()
+        start = end = datetime.today()
         stations = Stations()
         station = stations.nearby(lat, lon).fetch(1)
         if station.empty:
@@ -45,7 +45,6 @@ def get_weather_data(lat, lon):
     except Exception as e:
         st.error(f"Error fetching weather data: {e}")
         return None
-
 
 def set_goal_based_on_climate(temp):
     """Adjust water goal based on temperature."""
@@ -242,3 +241,4 @@ elif st.session_state["page"] == "tasks":
     tasks_page()
 elif st.session_state["page"] == "settings":
     settings_page()
+
