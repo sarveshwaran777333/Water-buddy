@@ -1,5 +1,7 @@
 geocoder==1.38.1
+geopy==2.4.1
 jsonschema==4.25.1
 streamlit==1.50.0
 streamlit-autorefresh==1.0.1
 streamlit-lottie==0.0.5
+
