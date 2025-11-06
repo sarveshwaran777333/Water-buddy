@@ -242,8 +242,6 @@ def settings_page():
         st.session_state["page"] = "login"
         st.rerun()
 
-st.button("🏠 Back to Home", on_click=lambda: st.session_state.update(page="home"))
-st.button("🧾 Go to Task Page", on_click=lambda: st.session_state.update(page="tasks"))
     # Apply theme effects visually
     if theme == "Dark":
         st.markdown("<style>body {color: white; background-color: #1e1e1e;}</style>", unsafe_allow_html=True)
@@ -251,6 +249,8 @@ st.button("🧾 Go to Task Page", on_click=lambda: st.session_state.update(page=
         st.markdown("<style>body {color: #005f73; background-color: #d9fdfc;}</style>", unsafe_allow_html=True)
     else:
         st.markdown("<style>body {color: black; background-color: white;}</style>", unsafe_allow_html=True)
+st.button("🏠 Back to Home", on_click=lambda: st.session_state.update(page="home"))
+st.button("🧾 Go to Task Page", on_click=lambda: st.session_state.update(page="tasks"))
 
     if font_size == "Small":
         st.markdown("<style>body {font-size: 14px;}</style>", unsafe_allow_html=True)
@@ -276,6 +276,7 @@ elif st.session_state["page"] == "tasks":
     tasks_page()
 elif st.session_state["page"] == "settings":
     settings_page()
+
 
 
 
