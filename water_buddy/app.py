@@ -113,6 +113,24 @@ def login_page():
     username = st.text_input("Username")
     password = st.text_input("Password", type="password")
 
+st.markdown("""
+<style>
+div.stButton > button:first-child {
+    background-color: #007bff;  /* button background */
+    color: white;               /* text color */
+    border-radius: 10px;
+    font-weight: bold;
+    font-size: 16px;
+    padding: 0.6em 1.2em;
+    transition: 0.3s;
+}
+div.stButton > button:first-child:hover {
+    background-color: #0056b3;  /* darker blue when hovered */
+    color: #e0e0e0;             /* text hover color */
+}
+</style>
+""", unsafe_allow_html=True)
+
     if st.button("Login"):
         if username in users and users[username]["password"] == hash_password(password):
             st.session_state["user"] = username
@@ -335,5 +353,6 @@ elif st.session_state["page"] == "tasks":
     tasks_page()
 elif st.session_state["page"] == "settings":
     settings_page()
+
 
 
