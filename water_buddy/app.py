@@ -133,21 +133,44 @@ def home_page():
         save_users(users)
         st.success(f"Updated goal based on temperature in {city}!")
 
+    # 🧩 Task context (show if user came from a task)
+    if st.session_state.get("from_task"):
+        st.info(f"💧 Task: {st.session_state['selected_task']} (Goal: {st.session_state['required_amount']} ml)")
+        st.write("Please log the required amount of water to complete this task.")
+
     st.write(f"🎯 Daily Goal: {user_data['goal']} ml")
     st.write(f"💧 Water Logged: {user_data['logged']} ml")
     st.write("🕒 Local time:", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
 
     add = st.number_input("Log water intake (ml):", min_value=0)
+
     if st.button("Log Water"):
         user_data["logged"] += add
+
+        # ✅ Check if came from a task
+        if st.session_state.get("from_task"):
+            required = st.session_state["required_amount"]
+            if add >= required:
+                st.success(f"🎉 Task completed! You logged {add} ml (required: {required} ml).")
+            else:
+                st.warning(f"You logged {add} ml, but the task requires {required} ml. Keep going!")
+
+            # Clear task session data
+            st.session_state["from_task"] = False
+            st.session_state["selected_task"] = None
+            st.session_state["required_amount"] = None
+
+        # ✅ Check daily goal
         if user_data["logged"] >= user_data["goal"]:
             st.balloons()
             st.success("Goal achieved! Great job staying hydrated 💦")
+
         save_users(users)
         st.rerun()
 
     st.button("🧾 Go to Task Page", on_click=lambda: st.session_state.update(page="tasks"))
     st.button("⚙️ Go to Settings", on_click=lambda: st.session_state.update(page="settings"))
+
 
 
 def tasks_page():
@@ -249,6 +272,7 @@ elif st.session_state["page"] == "tasks":
     tasks_page()
 elif st.session_state["page"] == "settings":
     settings_page()
+
 
 
 
