@@ -1,8 +1,11 @@
 import streamlit as st
-import json, os, hashlib
-from datetime import datetime, timedelta
-from meteostat import Stations, Daily
+import json, os, hashlib, requests
+from datetime import datetime
 from geopy.geocoders import Nominatim
+
+# ---------------------------
+# Utility Functions
+# ---------------------------
 
 def get_coordinates_from_city(city):
     """Get latitude and longitude from a city name."""
@@ -20,28 +23,22 @@ def get_coordinates_from_city(city):
 
 
 def get_weather_data(lat, lon):
-    """Fetch weather data from meteostat."""
+    """Fetch current temperature using Open-Meteo API (no external dependency)."""
     try:
-        end = datetime.today()
-        start = end - timedelta(days=1)
-        stations = Stations()
-        station = stations.nearby(lat, lon).fetch(1)
-        if station.empty:
-            st.warning("No nearby weather station found.")
-            return None
-
-        station_id = station.index[0]
-        data = Daily(station_id, start, end).fetch()
-
-        if not data.empty and 'tavg' in data.columns:
-            temperature = round(data['tavg'].dropna().iloc[-1], 1)
-            return temperature
+        url = f"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}&current_weather=true"
+        response = requests.get(url)
+        data = response.json()
+        if "current_weather" in data:
+            temp = data["current_weather"]["temperature"]
+            return round(temp, 1)
         else:
-            st.warning("No recent weather data available. Using default temperature 30°C.")
-            return 30.0  # default fallback
+            st.warning("No weather data available.")
+            return None
     except Exception as e:
         st.error(f"Error fetching weather data: {e}")
         return None
+
+
 def set_goal_based_on_climate(temp):
     """Adjust water goal based on temperature."""
     if temp is None:
@@ -71,127 +68,30 @@ def save_users(users):
     with open("users.json", "w") as f:
         json.dump(users, f, indent=4)
 
-def apply_theme_and_font():
-    theme = st.session_state.get("theme", "Light")
-    font_size = st.session_state.get("font_size", 16)  # default to 16px if missing
 
-    # -------------------------------
-    # Theme styling
-    # -------------------------------
+# ---------------------------
+# Page Functions
+# ---------------------------
+
+def apply_theme_and_font(theme, font_size):
+    """Dynamically apply theme and font size."""
     if theme == "Dark":
-        st.markdown(f"""
-        <style>
-        .stApp {{
-            background-color: #121212;
-            color: #f5f5f5;
-            font-size: {font_size}px !important;
-        }}
-        h1, h2, h3, h4, h5, h6, p, div, span, label {{
-            color: #f5f5f5 !important;
-            font-size: {font_size}px !important;
-        }}
-        /* Buttons */
-        .stButton>button {{
-            background-color: #1f1f1f !important;
-            color: #ffffff !important;
-            border: 1px solid #f5f5f5 !important;
-            border-radius: 8px;
-            font-size: {font_size}px !important;
-        }}
-        /* Input boxes */
-        .stTextInput>div>div>input, .stNumberInput input, .stSelectbox>div>div>div>div {{
-            background-color: #1f1f1f !important;
-            color: #ffffff !important;
-            border: 1px solid #888 !important;
-            border-radius: 6px;
-            font-size: {font_size}px !important;
-        }}
-        </style>
-        """, unsafe_allow_html=True)
-
+        st.markdown("<style>body {color: white; background-color: #1e1e1e;}</style>", unsafe_allow_html=True)
     elif theme == "Aqua":
-        st.markdown(f"""
-        <style>
-        .stApp {{
-            background-color: #d9fdfc;
-            color: #004d4d;
-            font-size: {font_size}px !important;
-        }}
-        h1, h2, h3, h4, h5, h6, p, div, span, label {{
-            color: #004d4d !important;
-            font-size: {font_size}px !important;
-        }}
-        .stButton>button {{
-            background-color: #00bfa6 !important;
-            color: #ffffff !important;
-            border: 1px solid #007f73 !important;
-            border-radius: 8px;
-            font-size: {font_size}px !important;
-        }}
-        .stTextInput>div>div>input, .stNumberInput input, .stSelectbox>div>div>div>div {{
-            background-color: #b2f7f2 !important;
-            color: #004d4d !important;
-            border: 1px solid #007f73 !important;
-            border-radius: 6px;
-            font-size: {font_size}px !important;
-        }}
-        </style>
-        """, unsafe_allow_html=True)
+        st.markdown("<style>body {color: #005f73; background-color: #d9fdfc;}</style>", unsafe_allow_html=True)
+    else:
+        st.markdown("<style>body {color: black; background-color: white;}</style>", unsafe_allow_html=True)
 
-    else:  # Light theme
-        st.markdown(f"""
-        <style>
-        .stApp {{
-            background-color: #ffffff;
-            color: #000000;
-            font-size: {font_size}px !important;
-        }}
-        h1, h2, h3, h4, h5, h6, p, div, span, label {{
-            color: #000000 !important;
-            font-size: {font_size}px !important;
-        }}
-        .stButton>button {{
-            background-color: #007bff !important;
-            color: #ffffff !important;
-            border: none;
-            border-radius: 8px;
-            font-size: {font_size}px !important;
-        }}
-        .stTextInput>div>div>input, .stNumberInput input, .stSelectbox>div>div>div>div {{
-            background-color: #f9f9f9 !important;
-            color: #000000 !important;
-            border: 1px solid #ccc !important;
-            border-radius: 6px;
-            font-size: {font_size}px !important;
-        }}
-        </style>
-        """, unsafe_allow_html=True)
+    if font_size == "Small":
+        st.markdown("<style>body {font-size: 14px;}</style>", unsafe_allow_html=True)
+    elif font_size == "Medium":
+        st.markdown("<style>body {font-size: 16px;}</style>", unsafe_allow_html=True)
+    else:
+        st.markdown("<style>body {font-size: 18px;}</style>", unsafe_allow_html=True)
 
-# ---------------------------
-# Pages
-# ---------------------------
 
 def login_page():
     st.title("💧 Water Buddy Login")
-    apply_theme_and_font()
-    st.markdown("""
-        <style>
-        div.stButton > button:first-child {
-            background-color: #007bff;  /* button background */
-            color: white;               /* text color */
-            border-radius: 10px;
-            font-weight: bold;
-            font-size: 16px;
-            padding: 0.6em 1.2em;
-            transition: 0.3s;
-        }
-        div.stButton > button:first-child:hover {
-            background-color: #0056b3;  /* darker blue when hovered */
-            color: #e0e0e0;             /* text hover color */
-        }
-        </style>
-    """, unsafe_allow_html=True)
-
     users = load_users()
     username = st.text_input("Username")
     password = st.text_input("Password", type="password")
@@ -199,8 +99,8 @@ def login_page():
     if st.button("Login"):
         if username in users and users[username]["password"] == hash_password(password):
             st.session_state["user"] = username
-            st.success("Login successful!")
             st.session_state["page"] = "home"
+            st.success("Login successful!")
         else:
             st.error("Invalid username or password.")
 
@@ -208,8 +108,8 @@ def login_page():
     if st.button("Sign Up"):
         st.session_state["page"] = "signup"
 
+
 def signup_page():
-    apply_theme_and_font()
     st.title("🧊 Create Your Water Buddy Account")
     users = load_users()
     username = st.text_input("Choose a Username")
@@ -227,168 +127,96 @@ def signup_page():
                 "font_size": "Medium"
             }
             save_users(users)
-            st.success("Account created! You can now log in.")
+            st.success("Account created successfully! You can now log in.")
             st.session_state["page"] = "login"
 
 
 def home_page():
-    apply_theme_and_font()
     st.title("🏠 Water Buddy Home")
 
     users = load_users()
     username = st.session_state["user"]
     user_data = users.get(username, {"goal": 2000, "logged": 0})
 
+    theme = user_data.get("theme", "Light")
+    font_size = user_data.get("font_size", "Medium")
+    apply_theme_and_font(theme, font_size)
+
     city = st.text_input("Enter your city:", value="Chennai")
-    if st.button("Get Weather"):
+    if st.button("☁️ Get Weather & Update Goal"):
         lat, lon = get_coordinates_from_city(city)
         temp = get_weather_data(lat, lon)
         goal = set_goal_based_on_climate(temp)
         user_data["goal"] = goal
         save_users(users)
-        st.success(f"Updated goal based on temperature in {city}!")
+        if temp:
+            st.success(f"Temperature in {city}: {temp}°C — Goal updated to {goal} ml!")
 
-    # 🧩 Task context (show if user came from a task)
-    if st.session_state.get("from_task"):
-        st.info(f"💧 Task: {st.session_state['selected_task']} (Goal: {st.session_state['required_amount']} ml)")
-        st.write("Please log the required amount of water to complete this task.")
-
-    st.write(f"🎯 Daily Goal: {user_data['goal']} ml")
-    st.write(f"💧 Water Logged: {user_data['logged']} ml")
-    st.write("🕒 Local time:", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+    st.write(f"🎯 Daily Goal: **{user_data['goal']} ml**")
+    st.write(f"💧 Water Logged: **{user_data['logged']} ml**")
+    st.write(f"🕒 Local time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
 
     add = st.number_input("Log water intake (ml):", min_value=0)
-
     if st.button("Log Water"):
         user_data["logged"] += add
-
-        # ✅ Check if came from a task
-        if st.session_state.get("from_task"):
-            required = st.session_state["required_amount"]
-            if add >= required:
-                st.success(f"🎉 Task completed! You logged {add} ml (required: {required} ml).")
-            else:
-                st.warning(f"You logged {add} ml, but the task requires {required} ml. Keep going!")
-
-            # Clear task session data
-            st.session_state["from_task"] = False
-            st.session_state["selected_task"] = None
-            st.session_state["required_amount"] = None
-
-        # ✅ Check daily goal
+        save_users(users)
         if user_data["logged"] >= user_data["goal"]:
             st.balloons()
             st.success("Goal achieved! Great job staying hydrated 💦")
-
-        save_users(users)
         st.rerun()
 
-    st.button("🧾 Go to Task Page", on_click=lambda: st.session_state.update(page="tasks"))
-    st.button("⚙️ Go to Settings", on_click=lambda: st.session_state.update(page="settings"))
-
+    st.button("🧾 Task Page", on_click=lambda: st.session_state.update(page="tasks"))
+    st.button("⚙️ Settings", on_click=lambda: st.session_state.update(page="settings"))
 
 
 def tasks_page():
-    apply_theme_and_font()
     st.title("🧾 Daily Hydration Tasks")
-    st.write("Complete hydration challenges to stay on track:")
-
-    # ✅ Task: required water amount
-    tasks = {
-        "Drink 1 glass of water as soon as you wake up.": 200,
-        "Refill your water bottle every 2 hours.": 250,
-        "Take a short walk and drink water after.": 150,
-        "Eat a hydrating fruit like watermelon or cucumber.": 100,
-        "Set a reminder to drink water every hour.": 0,
-        "Drink 200ml of water now.": 200,
-        "Get hydrated by drinking 500ml of water now.": 500
-    }
-
-    for task, amount in tasks.items():
-        # ✅ Unique widget key
-        key_name = f"task_checkbox_{task}"
-        checked = st.checkbox(task, key=key_name)
-
-        if checked and not st.session_state.get(f"task_done_{task}", False):
-            st.session_state["selected_task"] = task
-            st.session_state["required_amount"] = amount
-            st.session_state["from_task"] = True
-            st.session_state[f"task_done_{task}"] = True  # Mark as completed
-            st.session_state["page"] = "home"
-            st.rerun()
+    st.markdown("Complete these small challenges to stay hydrated 💧")
+    tasks = [
+        "💦 Drink one glass of water after waking up.",
+        "🕒 Refill your water bottle every 2 hours.",
+        "🚶 Take a short walk and drink water after.",
+        "🍉 Eat hydrating fruits like watermelon or cucumber.",
+        "📱 Set hourly reminders to drink water."
+    ]
+    for t in tasks:
+        st.checkbox(t, key=t)
 
     st.button("🏠 Back to Home", on_click=lambda: st.session_state.update(page="home"))
     st.button("⚙️ Settings", on_click=lambda: st.session_state.update(page="settings"))
 
 
 def settings_page():
-    apply_theme_and_font()
     st.title("⚙️ Settings")
 
     users = load_users()
     username = st.session_state["user"]
     user_data = users[username]
 
-    # ------------------------
-    # 🎨 Theme and Font Selection
-    # ------------------------
-    st.subheader("Appearance")
+    # Apply current theme/font immediately
+    apply_theme_and_font(user_data.get("theme", "Light"), user_data.get("font_size", "Medium"))
 
-    theme = st.selectbox(
-        "Select Theme:",
-        ["Light", "Dark", "Aqua"],
-        index=["Light", "Dark", "Aqua"].index(user_data.get("theme", "Light")),
-        key="theme_select"
-    )
+    theme = st.selectbox("Select Theme:", ["Light", "Dark", "Aqua"], index=["Light", "Dark", "Aqua"].index(user_data.get("theme", "Light")))
+    font_size = st.selectbox("Font Size:", ["Small", "Medium", "Large"], index=["Small", "Medium", "Large"].index(user_data.get("font_size", "Medium")))
 
-    # Common MS Word-style font sizes
-    word_font_sizes = [8, 9, 10, 11, 12, 14, 16, 18, 20, 22, 24, 28, 32]
-    default_font_size = user_data.get("font_size", 16)
-    if isinstance(default_font_size, str):
-        try:
-            default_font_size = int(default_font_size)
-        except:
-            default_font_size = 16
-
-    font_size = st.selectbox(
-        "Font Size (like MS Word):",
-        word_font_sizes,
-        index=word_font_sizes.index(default_font_size) if default_font_size in word_font_sizes else 5,
-        key="font_select"
-    )
-
-    custom_size = st.number_input(
-        "Or enter a custom font size:",
-        min_value=8,
-        max_value=72,
-        value=font_size,
-        step=1
-    )
-
-    # ------------------------
-    # 💾 Apply Settings
-    # ------------------------
     if st.button("💾 Apply Settings"):
         user_data["theme"] = theme
-        user_data["font_size"] = custom_size
+        user_data["font_size"] = font_size
         save_users(users)
-        st.session_state["theme"] = theme
-        st.session_state["font_size"] = custom_size
-        st.success("Settings updated successfully!")
+        st.success("Settings applied successfully!")
         st.rerun()
 
-    # ------------------------
-    # 🔁 Reset Options
-    # ------------------------
     if st.button("🔁 Reset Daily Water Log"):
         user_data["logged"] = 0
         save_users(users)
-        st.success("Daily log reset!")
+        st.success("Water log reset successfully!")
 
     if st.button("♻️ Reset Settings to Default"):
-        user_data.update({"theme": "Light", "font_size": 16, "goal": 2000})
+        user_data["theme"] = "Light"
+        user_data["font_size"] = "Medium"
+        user_data["goal"] = 2000
         save_users(users)
-        st.success("Settings restored to default!")
+        st.success("All settings restored to default!")
         st.rerun()
 
     if st.button("🔒 Logout"):
@@ -396,53 +224,9 @@ def settings_page():
         st.session_state["page"] = "login"
         st.rerun()
 
-    # ------------------------
-    # 🖌️ Apply CSS (Dynamic Theme + Font)
-    # ------------------------
-    theme_to_use = st.session_state.get("theme", user_data.get("theme", "Light"))
-    font_to_use = st.session_state.get("font_size", user_data.get("font_size", 16))
-
-    css = f"""
-    <style>
-    body, .stApp {{
-        font-size: {font_to_use}px !important;
-    }}
-    h1,h2,h3,h4,h5,h6,p,div,span,label {{
-        font-size: {font_to_use}px !important;
-    }}
-    """
-
-    if theme_to_use == "Dark":
-        css += """
-        .stApp { background-color: #1e1e1e; color: white; }
-        .stButton>button { background-color: #333; color: white; border-radius: 8px; }
-        .stTextInput>div>div>input { background-color: #222; color: white; border-radius: 6px; }
-        """
-    elif theme_to_use == "Aqua":
-        css += """
-        .stApp { background-color: #d9fdfc; color: #005f73; }
-        .stButton>button { background-color: #00bfa6; color: white; border-radius: 8px; }
-        .stTextInput>div>div>input { background-color: #b2f7f2; color: #005f73; border-radius: 6px; }
-        """
-    else:
-        css += """
-        .stApp { background-color: white; color: black; }
-        .stButton>button { background-color: #007bff; color: white; border-radius: 8px; }
-        .stTextInput>div>div>input { background-color: #f9f9f9; color: black; border-radius: 6px; }
-        """
-
-    css += "</style>"
-    st.markdown(css, unsafe_allow_html=True)
-    st.button("🏠 Back to Home", on_click=lambda: st.session_state.update(page="home"))
-    st.button("🧾 Go to Task Page", on_click=lambda: st.session_state.update(page="tasks"))
-
-if "page" not in st.session_state:
-    st.session_state["page"] = "login"
-
-apply_theme_and_font()
 
 # ---------------------------
-# Main App Controller
+# App Controller
 # ---------------------------
 
 if "page" not in st.session_state:
@@ -458,11 +242,3 @@ elif st.session_state["page"] == "tasks":
     tasks_page()
 elif st.session_state["page"] == "settings":
     settings_page()
-
-
-
-
-
-
-
-
