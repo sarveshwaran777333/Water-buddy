@@ -341,7 +341,13 @@ def tasks_page():
                 user_data["rewards"] = user_data.get("rewards", 0) + 10
 
                 # persist to firebase (use patch so entire user record not needed)
-                firebase_patch(f"users/{username}", {"completed_tasks": user_data["completed_tasks"], "rewards": user_data["rewards"]})
+                firebase_patch(
+                    f"users/{username}",
+                    {
+                        "completed_tasks": user_data["completed_tasks"],
+                        "rewards": user_data["rewards"]
+                    }
+                )
 
                 # add the task to session_state so home_page will prompt to log it
                 st.session_state["tasks_to_log"].append(t)
@@ -354,7 +360,9 @@ def tasks_page():
     st.markdown("---")
     st.markdown(f"**🏆 Total Rewards:** {user_data.get('rewards', 0)} points")
     st.caption("Tasks reset each day when you reset your daily log (you can extend to permanent history).")
-st.divider()
+
+    # --- Navigation Buttons ---
+    st.divider()
     st.subheader("🚀 Navigation")
     col1, col2, col3 = st.columns(3)
     with col1:
@@ -456,6 +464,7 @@ elif st.session_state["page"] == "tasks":
     tasks_page()
 elif st.session_state["page"] == "settings":
     settings_page()
+
 
 
 
