@@ -325,6 +325,16 @@ def settings_page():
         st.success("✅ Display settings updated!")
         st.rerun()
 
+    # --- Age Settings ---
+    st.divider()
+    st.subheader("👤 Age Settings")
+
+    age = st.number_input("Enter your age:", min_value=5, max_value=100, value=int(user_data.get("age", 18)))
+    if st.button("💾 Save Age"):
+        user_data["age"] = age
+        firebase_patch(f"users/{username}", user_data)
+        st.success("🎉 Age updated successfully!")
+
     # --- Water Log Controls ---
     st.divider()
     st.subheader("💧 Water Log Controls")
@@ -346,7 +356,8 @@ def settings_page():
             "logged": 0,
             "location": "Chennai",
             "lat": 13.0827,
-            "lon": 80.2707
+            "lon": 80.2707,
+            "age": 18
         })
         firebase_patch(f"users/{username}", user_data)
         st.success("✅ All settings reset to default.")
@@ -387,8 +398,3 @@ elif st.session_state["page"] == "tasks":
     tasks_page()
 elif st.session_state["page"] == "settings":
     settings_page()
-
-
-
-
-
