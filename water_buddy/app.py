@@ -147,6 +147,11 @@ def signup_page():
             st.session_state["page"] = "login"
 
 
+import streamlit as st
+import requests
+import datetime
+import matplotlib.pyplot as plt
+
 def home_page():
     st.title("🏠 Water Buddy Home")
 
@@ -155,27 +160,45 @@ def home_page():
 
     apply_theme_and_font(user_data["theme"], user_data["font"])
 
-    # Auto-reset every 24 hours
+    # --- Auto-reset every 24 hours ---
     today = str(datetime.date.today())
     if user_data.get("last_reset") != today:
         user_data["logged"] = 0
         user_data["last_reset"] = today
         firebase_patch(f"users/{username}", user_data)
 
+    # --- City input ---
     st.write("📍 Enter your city:")
     city = st.text_input("City", value=user_data.get("location", "Chennai"))
 
+    # --- Update location and coordinates ---
     if st.button("Update Location"):
-        geo = requests.get(f"https://nominatim.openstreetmap.org/search?city={city}&format=json").json()
-        if geo:
-            lat, lon = float(geo[0]["lat"]), float(geo[0]["lon"])
-            user_data.update({"location": city, "lat": lat, "lon": lon})
-            firebase_patch(f"users/{username}", user_data)
-            st.success(f"Location updated to {city}!")
-        else:
-            st.error("Could not find that city. Try again.")
+        try:
+            headers = {"User-Agent": "WaterBuddyApp/1.0 (contact@example.com)"}
+            url = f"https://nominatim.openstreetmap.org/search?city={city}&format=json"
+            response = requests.get(url, headers=headers, timeout=10)
+            geo = response.json()
 
-    lat, lon = user_data["lat"], user_data["lon"]
+            if geo and isinstance(geo, list):
+                lat, lon = float(geo[0]["lat"]), float(geo[0]["lon"])
+                user_data["location"] = city
+                user_data["lat"], user_data["lon"] = lat, lon
+                firebase_patch(f"users/{username}", user_data)
+                st.success(f"✅ Location updated to {city}!")
+            else:
+                st.warning("⚠️ Couldn't fetch that city. Using default (Madurai).")
+                user_data["location"] = "Madurai"
+                user_data["lat"], user_data["lon"] = 9.9252, 78.1198
+                firebase_patch(f"users/{username}", user_data)
+
+        except Exception as e:
+            st.warning("⚠️ Weather service not reachable. Using default (Madurai).")
+            user_data["location"] = "Madurai"
+            user_data["lat"], user_data["lon"] = 9.9252, 78.1198
+            firebase_patch(f"users/{username}", user_data)
+
+    # --- Weather + Goal ---
+    lat, lon = user_data.get("lat", 9.9252), user_data.get("lon", 78.1198)
     temp = get_weather_data(lat, lon)
     goal = set_goal_based_on_climate(temp)
     user_data["goal"] = goal
@@ -186,52 +209,60 @@ def home_page():
     st.markdown(f"**💧 Logged So Far:** {user_data['logged']} ml")
     st.write("🕒", datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
 
+    # --- Progress Bar ---
     progress = min(user_data["logged"] / goal, 1.0)
     st.progress(progress)
     st.caption(f"{int(progress * 100)}% of your goal achieved!")
 
     # --- Matplotlib Hydration Chart ---
     fig, ax = plt.subplots(figsize=(5, 2.5))
-    ax.bar(["Goal", "Logged"], [goal, user_data["logged"]], color=["#90CAF9", "#42A5F5"])
+    ax.bar(["Goal", "Logged"], [goal, user_data["logged"]],
+           color=["#90CAF9", "#42A5F5"], width=0.5)
     ax.set_ylabel("ml")
     ax.set_title("Today's Hydration Progress")
+    ax.grid(axis="y", linestyle="--", alpha=0.5)
     st.pyplot(fig)
 
-    # Update daily history
+    # --- Weekly Trend History ---
     if "history" not in user_data:
         user_data["history"] = []
+
     if not user_data["history"] or user_data["history"][-1]["date"] != today:
         user_data["history"].append({"date": today, "logged": user_data["logged"]})
         if len(user_data["history"]) > 7:
             user_data["history"].pop(0)
         firebase_patch(f"users/{username}", user_data)
 
-    # Weekly trend chart
     st.subheader("📊 Weekly Hydration Trend")
     dates = [d["date"][-5:] for d in user_data["history"]]
     logged = [d["logged"] for d in user_data["history"]]
+
     fig2, ax2 = plt.subplots(figsize=(5, 2.5))
     ax2.plot(dates, logged, marker="o", color="#42A5F5")
     ax2.set_xlabel("Date")
     ax2.set_ylabel("Water (ml)")
     ax2.set_title("Hydration Over the Last 7 Days")
+    ax2.grid(alpha=0.4)
     st.pyplot(fig2)
 
-    # Add water
+    # --- Add Water Section ---
     add = st.number_input("Add water intake (ml):", min_value=0)
     if st.button("Log Water"):
         user_data["logged"] += add
         firebase_patch(f"users/{username}", user_data)
         if user_data["logged"] >= goal:
             st.balloons()
-            st.success("Goal achieved! 💦")
+            st.success("🎉 Goal achieved! Stay hydrated 💦")
         st.rerun()
 
     st.divider()
-    if st.button("Go to Tasks 📋"):
-        st.session_state["page"] = "tasks"
-    if st.button("Settings ⚙️"):
-        st.session_state["page"] = "settings"
+    col1, col2 = st.columns(2)
+    with col1:
+        if st.button("Go to Tasks 📋"):
+            st.session_state["page"] = "tasks"
+    with col2:
+        if st.button("Settings ⚙️"):
+            st.session_state["page"] = "settings"
 
 
 def tasks_page():
@@ -305,3 +336,4 @@ elif st.session_state["page"] == "tasks":
     tasks_page()
 elif st.session_state["page"] == "settings":
     settings_page()
+
