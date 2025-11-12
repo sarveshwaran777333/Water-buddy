@@ -292,20 +292,54 @@ def home_page():
             st.session_state["page"] = "settings"
 
 
-def tasks_page():
-    st.title("📋 Daily Hydration Tasks")
-    tasks = [
-        "Drink 1 glass after waking up 🌅",
-        "Have water before meals 🍽️",
-        "Refill your bottle twice 🚰",
-        "Avoid sugary drinks 🧃",
-        "Drink water before bed 🌙",
-    ]
-    for t in tasks:
-        st.checkbox(t, key=t)
-    if st.button("Back to Home 🏠"):
-        st.session_state["page"] = "home"
+def task_page():
+    st.title("🎯 Hydration Tasks")
 
+    username = st.session_state.get("user")
+    if not username:
+        st.warning("Please log in to view your tasks.")
+        return
+
+    user_data = firebase_get(f"users/{username}")
+
+    # Sample daily tasks
+    tasks = [
+        {"id": 1, "task": "Drink 1 cup of water now (200 ml)", "amount": 200},
+        {"id": 2, "task": "Drink water before your meal", "amount": 250},
+        {"id": 3, "task": "Refill your bottle", "amount": 0},
+        {"id": 4, "task": "Take 2 sips every hour", "amount": 100},
+    ]
+
+    # Initialize user rewards if not present
+    if "rewards" not in user_data:
+        user_data["rewards"] = 0
+        firebase_put(f"users/{username}", user_data)
+
+    st.write("💧 Click a task below to complete it and earn rewards!")
+
+    for task in tasks:
+        task_key = f"task_{task['id']}"
+        completed = user_data.get("completed_tasks", {}).get(task_key, False)
+
+        if completed:
+            st.success(f"✅ {task['task']} (Completed)")
+        else:
+            if st.button(task["task"]):
+                # Redirect to Home Page after logging the water
+                if "tasks_to_log" not in st.session_state:
+                    st.session_state["tasks_to_log"] = []
+                st.session_state["tasks_to_log"].append(task)
+
+                # Mark as completed and reward
+                user_data.setdefault("completed_tasks", {})[task_key] = True
+                user_data["rewards"] += 10  # Reward points
+                firebase_put(f"users/{username}", user_data)
+
+                st.success("🎉 Task completed! You earned +10 points!")
+                st.session_state["page"] = "Home"  # Go to home page
+                st.experimental_rerun()
+
+    st.markdown(f"**🏆 Total Rewards:** {user_data.get('rewards', 0)} points")
 
 def settings_page():
     st.title("⚙️ Settings")
@@ -392,3 +426,4 @@ elif st.session_state["page"] == "tasks":
     tasks_page()
 elif st.session_state["page"] == "settings":
     settings_page()
+
