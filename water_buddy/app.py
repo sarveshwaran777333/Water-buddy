@@ -3,6 +3,7 @@ import requests
 import datetime
 import matplotlib.pyplot as plt
 import hashlib
+
 # =========================
 # CONFIG
 # =========================
@@ -18,29 +19,31 @@ def hash_password(password):
 
 def firebase_get(path):
     url = f"{FIREBASE_URL}/{path}.json"
-    response = requests.get(url)
-    if response.status_code == 200:
-        return response.json() or {}
-    else:
-        st.error("⚠️ Firebase fetch failed.")
+    try:
+        response = requests.get(url, timeout=10)
+        if response.status_code == 200:
+            return response.json() or {}
+        else:
+            st.error("⚠️ Firebase fetch failed.")
+            return {}
+    except:
+        st.warning("⚠️ Unable to connect to Firebase.")
         return {}
-
-
-def firebase_put(path, data):
-    url = f"{FIREBASE_URL}/{path}.json"
-    requests.put(url, json=data)
 
 
 def firebase_patch(path, data):
     url = f"{FIREBASE_URL}/{path}.json"
-    requests.patch(url, json=data)
+    try:
+        requests.patch(url, json=data, timeout=10)
+    except:
+        st.warning("⚠️ Firebase update failed.")
 
 
 def get_weather_data(lat, lon):
-    """Fetch reliable temperature using Open-Meteo API with fallback."""
+    """Fetch temperature using Open-Meteo API."""
     try:
         url = f"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}&current_weather=true"
-        r = requests.get(url)
+        r = requests.get(url, timeout=10)
         data = r.json()
         if "current_weather" in data:
             return round(data["current_weather"]["temperature"], 1)
@@ -51,7 +54,6 @@ def get_weather_data(lat, lon):
 
 
 def set_goal_based_on_climate(temp):
-    """Set goal dynamically based on temperature."""
     if temp >= 35:
         return 3500
     elif temp >= 30:
@@ -63,7 +65,7 @@ def set_goal_based_on_climate(temp):
 
 
 def apply_theme_and_font(theme, font):
-    """Apply theme, font size, and button colors."""
+    """Apply custom theme and font style."""
     if theme == "Dark":
         st.markdown("""
         <style>
@@ -140,51 +142,48 @@ def login_page():
 
 
 def signup_page():
-    st.title("🧍‍♂️ Create Your WaterBuddy Account")
+    st.title("🧊 Create Your Water Buddy Account")
 
-    username = st.text_input("👤 Username")
-    password = st.text_input("🔑 Password", type="password")
-    age = st.number_input("🎂 Age", min_value=5, max_value=100, value=18)
+    username = st.text_input("Choose a Username")
+    password = st.text_input("Choose a Password", type="password")
 
-    if st.button("🚀 Sign Up"):
-        if not username or not password:
-            st.warning("⚠️ Please enter both username and password.")
+    if st.button("Sign Up"):
+        users = firebase_get("users")
+        if username in users:
+            st.error("Username already exists.")
         else:
-            # Check if username exists
-            user_check = firebase_get(f"users/{username}")
-            if user_check:
-                st.error("❌ Username already exists. Please choose another.")
-            else:
-                # Default location (you can update with actual user city later)
-                default_city = "Chennai"
-                geo = requests.get(f"https://nominatim.openstreetmap.org/search?city={default_city}&format=json").json()
-                lat, lon = (13.0827, 80.2707)
-                if geo:
-                    lat, lon = float(geo[0]["lat"]), float(geo[0]["lon"])
+            # default safe coordinates (Chennai)
+            lat, lon = 13.0827, 80.2707
+            default_city = "Chennai"
 
-                # Save user data
-                firebase_patch(f"users/{username}", {
-                    "password": password,
-                    "theme": "Light",
-                    "font": "Medium",
-                    "goal": 2000,
-                    "logged": 0,
-                    "city": default_city,
-                    "lat": lat,
-                    "lon": lon,
-                    "age": age,
-                })
+            # Attempt to get user location
+            try:
+                headers = {"User-Agent": "WaterBuddyApp/1.0 (contact@example.com)"}
+                url = f"https://nominatim.openstreetmap.org/search?city={default_city}&format=json"
+                r = requests.get(url, headers=headers, timeout=10)
+                geo = r.json()
+                if isinstance(geo, list) and len(geo) > 0:
+                    lat = float(geo[0]["lat"])
+                    lon = float(geo[0]["lon"])
+            except:
+                st.warning("⚠️ Location fetch failed, using Chennai defaults.")
 
-                st.success("✅ Account created successfully! Please log in now.")
-                st.session_state["page"] = "login"
-                st.rerun()
+            user_data = {
+                "password": hash_password(password),
+                "goal": 2000,
+                "logged": 0,
+                "location": default_city,
+                "lat": lat,
+                "lon": lon,
+                "theme": "Light",
+                "font": "Medium",
+                "last_reset": str(datetime.date.today()),
+                "history": []
+            }
 
-    st.divider()
-    if st.button("🔑 Already have an account? Login here"):
-        st.session_state["page"] = "login"
-        st.rerun()
-
-
+            firebase_patch(f"users/{username}", user_data)
+            st.success("✅ Account created! You can now log in.")
+            st.session_state["page"] = "login"
 
 
 def home_page():
@@ -193,20 +192,22 @@ def home_page():
     username = st.session_state["user"]
     user_data = firebase_get(f"users/{username}")
 
+    if not user_data:
+        st.error("⚠️ User data not found. Please log in again.")
+        st.session_state["page"] = "login"
+        st.rerun()
+
     apply_theme_and_font(user_data["theme"], user_data["font"])
 
-    # --- Auto-reset every 24 hours ---
     today = str(datetime.date.today())
     if user_data.get("last_reset") != today:
         user_data["logged"] = 0
         user_data["last_reset"] = today
         firebase_patch(f"users/{username}", user_data)
 
-    # --- City input ---
     st.write("📍 Enter your city:")
     city = st.text_input("City", value=user_data.get("location", "Chennai"))
 
-    # --- Update location and coordinates ---
     if st.button("Update Location"):
         try:
             headers = {"User-Agent": "WaterBuddyApp/1.0 (contact@example.com)"}
@@ -214,25 +215,20 @@ def home_page():
             response = requests.get(url, headers=headers, timeout=10)
             geo = response.json()
 
-            if geo and isinstance(geo, list):
+            if isinstance(geo, list) and len(geo) > 0:
                 lat, lon = float(geo[0]["lat"]), float(geo[0]["lon"])
-                user_data["location"] = city
-                user_data["lat"], user_data["lon"] = lat, lon
+                user_data["location"], user_data["lat"], user_data["lon"] = city, lat, lon
                 firebase_patch(f"users/{username}", user_data)
                 st.success(f"✅ Location updated to {city}!")
             else:
                 st.warning("⚠️ Couldn't fetch that city. Using default (Madurai).")
-                user_data["location"] = "Madurai"
-                user_data["lat"], user_data["lon"] = 9.9252, 78.1198
+                user_data.update({"location": "Madurai", "lat": 9.9252, "lon": 78.1198})
                 firebase_patch(f"users/{username}", user_data)
-
-        except Exception as e:
+        except:
             st.warning("⚠️ Weather service not reachable. Using default (Madurai).")
-            user_data["location"] = "Madurai"
-            user_data["lat"], user_data["lon"] = 9.9252, 78.1198
+            user_data.update({"location": "Madurai", "lat": 9.9252, "lon": 78.1198})
             firebase_patch(f"users/{username}", user_data)
 
-    # --- Weather + Goal ---
     lat, lon = user_data.get("lat", 9.9252), user_data.get("lon", 78.1198)
     temp = get_weather_data(lat, lon)
     goal = set_goal_based_on_climate(temp)
@@ -244,12 +240,10 @@ def home_page():
     st.markdown(f"**💧 Logged So Far:** {user_data['logged']} ml")
     st.write("🕒", datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
 
-    # --- Progress Bar ---
     progress = min(user_data["logged"] / goal, 1.0)
     st.progress(progress)
     st.caption(f"{int(progress * 100)}% of your goal achieved!")
 
-    # --- Matplotlib Hydration Chart ---
     fig, ax = plt.subplots(figsize=(5, 2.5))
     ax.bar(["Goal", "Logged"], [goal, user_data["logged"]],
            color=["#90CAF9", "#42A5F5"], width=0.5)
@@ -258,7 +252,6 @@ def home_page():
     ax.grid(axis="y", linestyle="--", alpha=0.5)
     st.pyplot(fig)
 
-    # --- Weekly Trend History ---
     if "history" not in user_data:
         user_data["history"] = []
 
@@ -280,7 +273,6 @@ def home_page():
     ax2.grid(alpha=0.4)
     st.pyplot(fig2)
 
-    # --- Add Water Section ---
     add = st.number_input("Add water intake (ml):", min_value=0)
     if st.button("Log Water"):
         user_data["logged"] += add
@@ -323,49 +315,34 @@ def settings_page():
 
     apply_theme_and_font(user_data["theme"], user_data["font"])
 
-    # --- Theme and Font Settings ---
     st.subheader("🎨 Theme & Font")
-    theme = st.radio(
-        "Choose Theme:",
-        ["Light", "Dark"],
-        index=0 if user_data["theme"] == "Light" else 1
-    )
-    font = st.radio(
-        "Font Size:",
-        ["Small", "Medium", "Large"],
-        index=["Small", "Medium", "Large"].index(user_data["font"])
-    )
+    theme = st.radio("Choose Theme:", ["Light", "Dark"], index=0 if user_data["theme"] == "Light" else 1)
+    font = st.radio("Font Size:", ["Small", "Medium", "Large"],
+                    index=["Small", "Medium", "Large"].index(user_data["font"]))
 
     if theme != user_data["theme"] or font != user_data["font"]:
-        user_data["theme"] = theme
-        user_data["font"] = font
+        user_data["theme"], user_data["font"] = theme, font
         firebase_patch(f"users/{username}", user_data)
         st.success("✅ Display settings updated!")
         st.rerun()
 
-    # --- Age Settings ---
     st.divider()
     st.subheader("👤 Age Settings")
-
     age = st.number_input("Enter your age:", min_value=5, max_value=100, value=int(user_data.get("age", 18)))
     if st.button("💾 Save Age"):
         user_data["age"] = age
         firebase_patch(f"users/{username}", user_data)
         st.success("🎉 Age updated successfully!")
 
-    # --- Water Log Controls ---
     st.divider()
     st.subheader("💧 Water Log Controls")
-
     if st.button("🔁 Reset Daily Water Log"):
         user_data["logged"] = 0
         firebase_patch(f"users/{username}", user_data)
-        st.success("Water log has been reset for today!")
+        st.success("Water log reset for today!")
 
-    # --- Reset All Settings ---
     st.divider()
     st.subheader("🧩 Reset All Settings")
-
     if st.button("♻️ Reset to Default Settings"):
         user_data.update({
             "theme": "Light",
@@ -378,10 +355,9 @@ def settings_page():
             "age": 18
         })
         firebase_patch(f"users/{username}", user_data)
-        st.success("✅ All settings reset to default.")
+        st.success("✅ Settings reset to default.")
         st.rerun()
 
-    # --- Navigation Buttons ---
     st.divider()
     st.subheader("🚀 Navigation")
 
@@ -416,4 +392,3 @@ elif st.session_state["page"] == "tasks":
     tasks_page()
 elif st.session_state["page"] == "settings":
     settings_page()
-
