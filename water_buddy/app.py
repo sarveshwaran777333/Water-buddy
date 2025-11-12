@@ -298,43 +298,77 @@ def tasks_page():
 
 def settings_page():
     st.title("⚙️ Settings")
+
     username = st.session_state["user"]
     user_data = firebase_get(f"users/{username}")
 
     apply_theme_and_font(user_data["theme"], user_data["font"])
 
+    # --- Theme and Font Settings ---
     st.subheader("🎨 Theme & Font")
-    theme = st.radio("Choose Theme:", ["Light", "Dark"], index=(0 if user_data["theme"] == "Light" else 1))
-    font = st.radio("Font Size:", ["Small", "Medium", "Large"], index=["Small", "Medium", "Large"].index(user_data["font"]))
-    user_data["theme"], user_data["font"] = theme, font
-    firebase_patch(f"users/{username}", user_data)
+    theme = st.radio(
+        "Choose Theme:",
+        ["Light", "Dark"],
+        index=0 if user_data["theme"] == "Light" else 1
+    )
+    font = st.radio(
+        "Font Size:",
+        ["Small", "Medium", "Large"],
+        index=["Small", "Medium", "Large"].index(user_data["font"])
+    )
 
+    if theme != user_data["theme"] or font != user_data["font"]:
+        user_data["theme"] = theme
+        user_data["font"] = font
+        firebase_patch(f"users/{username}", user_data)
+        st.success("✅ Display settings updated!")
+        st.rerun()
+
+    # --- Water Log Controls ---
+    st.divider()
     st.subheader("💧 Water Log Controls")
-    if st.button("Reset Daily Log"):
+
+    if st.button("🔁 Reset Daily Water Log"):
         user_data["logged"] = 0
         firebase_patch(f"users/{username}", user_data)
-        st.success("Daily water log reset!")
+        st.success("Water log has been reset for today!")
 
-    st.subheader("🔄 Reset All Settings")
-    if st.button("Reset to Default"):
-        defaults = {
+    # --- Reset All Settings ---
+    st.divider()
+    st.subheader("🧩 Reset All Settings")
+
+    if st.button("♻️ Reset to Default Settings"):
+        user_data.update({
             "theme": "Light",
             "font": "Medium",
             "goal": 2000,
             "logged": 0,
             "location": "Chennai",
             "lat": 13.0827,
-            "lon": 80.2707,
-        }
-        firebase_patch(f"users/{username}", defaults)
-        st.success("Settings restored to default!")
+            "lon": 80.2707
+        })
+        firebase_patch(f"users/{username}", user_data)
+        st.success("✅ All settings reset to default.")
         st.rerun()
 
+    # --- Navigation Buttons ---
     st.divider()
-    if st.button("Logout 🚪"):
-        st.session_state.clear()
-        st.session_state["page"] = "login"
-        st.rerun()
+    st.subheader("🚀 Navigation")
+
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        if st.button("🏠 Go to Home"):
+            st.session_state["page"] = "home"
+            st.rerun()
+    with col2:
+        if st.button("📋 Go to Tasks"):
+            st.session_state["page"] = "tasks"
+            st.rerun()
+    with col3:
+        if st.button("🚪 Logout"):
+            st.session_state.clear()
+            st.session_state["page"] = "login"
+            st.rerun()
 
 # =========================
 # MAIN APP CONTROLLER
@@ -352,6 +386,7 @@ elif st.session_state["page"] == "tasks":
     tasks_page()
 elif st.session_state["page"] == "settings":
     settings_page()
+
 
 
 
