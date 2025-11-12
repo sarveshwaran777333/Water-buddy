@@ -140,31 +140,49 @@ def login_page():
 
 
 def signup_page():
-    st.title("🧊 Create Your Water Buddy Account")
+    st.title("🧍‍♂️ Create Your WaterBuddy Account")
 
-    username = st.text_input("Choose a Username")
-    password = st.text_input("Choose a Password", type="password")
+    username = st.text_input("👤 Username")
+    password = st.text_input("🔑 Password", type="password")
+    age = st.number_input("🎂 Age", min_value=5, max_value=100, value=18)
 
-    if st.button("Sign Up"):
-        users = firebase_get("users")
-        if username in users:
-            st.error("Username already exists.")
+    if st.button("🚀 Sign Up"):
+        if not username or not password:
+            st.warning("⚠️ Please enter both username and password.")
         else:
-            user_data = {
-                "password": hash_password(password),
-                "goal": 2000,
-                "logged": 0,
-                "location": "Chennai",
-                "lat": 13.0827,
-                "lon": 80.2707,
-                "theme": "Light",
-                "font": "Medium",
-                "last_reset": str(datetime.date.today()),
-                "history": []
-            }
-            firebase_patch(f"users/{username}", user_data)
-            st.success("✅ Account created! You can now log in.")
-            st.session_state["page"] = "login"
+            # Check if username exists
+            user_check = firebase_get(f"users/{username}")
+            if user_check:
+                st.error("❌ Username already exists. Please choose another.")
+            else:
+                # Default location (you can update with actual user city later)
+                default_city = "Chennai"
+                geo = requests.get(f"https://nominatim.openstreetmap.org/search?city={default_city}&format=json").json()
+                lat, lon = (13.0827, 80.2707)
+                if geo:
+                    lat, lon = float(geo[0]["lat"]), float(geo[0]["lon"])
+
+                # Save user data
+                firebase_patch(f"users/{username}", {
+                    "password": password,
+                    "theme": "Light",
+                    "font": "Medium",
+                    "goal": 2000,
+                    "logged": 0,
+                    "city": default_city,
+                    "lat": lat,
+                    "lon": lon,
+                    "age": age,
+                })
+
+                st.success("✅ Account created successfully! Please log in now.")
+                st.session_state["page"] = "login"
+                st.rerun()
+
+    st.divider()
+    if st.button("🔑 Already have an account? Login here"):
+        st.session_state["page"] = "login"
+        st.rerun()
 
 
 
@@ -398,3 +416,4 @@ elif st.session_state["page"] == "tasks":
     tasks_page()
 elif st.session_state["page"] == "settings":
     settings_page()
+
