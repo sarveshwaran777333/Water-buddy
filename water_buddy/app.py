@@ -292,54 +292,68 @@ def home_page():
             st.session_state["page"] = "settings"
 
 
-def task_page():
-    st.title("🎯 Hydration Tasks")
+def tasks_page():
+    """
+    Interactive tasks page:
+    - Clicking a task marks it completed, gives +10 reward points,
+      adds the task to session_state.tasks_to_log (so home_page will prompt to log water),
+      and redirects user to the home page.
+    """
+    st.title("📋 Daily Hydration Tasks")
 
     username = st.session_state.get("user")
     if not username:
         st.warning("Please log in to view your tasks.")
         return
 
-    user_data = firebase_get(f"users/{username}")
+    user_data = firebase_get(f"users/{username}") or {}
 
-    # Sample daily tasks
-    tasks = [
-        {"id": 1, "task": "Drink 1 cup of water now (200 ml)", "amount": 200},
-        {"id": 2, "task": "Drink water before your meal", "amount": 250},
-        {"id": 3, "task": "Refill your bottle", "amount": 0},
-        {"id": 4, "task": "Take 2 sips every hour", "amount": 100},
-    ]
-
-    # Initialize user rewards if not present
+    # Default storage for completed tasks and rewards
+    if "completed_tasks" not in user_data:
+        user_data["completed_tasks"] = {}
     if "rewards" not in user_data:
         user_data["rewards"] = 0
-        firebase_put(f"users/{username}", user_data)
 
-    st.write("💧 Click a task below to complete it and earn rewards!")
+    # Define tasks (id, text, amount_to_log_in_ml)
+    tasks = [
+        {"id": "t1", "text": "Drink 1 cup of water now (200 ml)", "amount": 200},
+        {"id": "t2", "text": "Drink water before your meal (250 ml)", "amount": 250},
+        {"id": "t3", "text": "Refill your bottle (no log)", "amount": 0},
+        {"id": "t4", "text": "Take 2 sips right now (100 ml)", "amount": 100},
+    ]
 
-    for task in tasks:
-        task_key = f"task_{task['id']}"
-        completed = user_data.get("completed_tasks", {}).get(task_key, False)
+    st.write("💧 Click a task to complete it and earn rewards!")
+
+    # Ensure session_state list exists to pass tasks to home_page for logging
+    if "tasks_to_log" not in st.session_state:
+        st.session_state["tasks_to_log"] = []
+
+    for t in tasks:
+        key = f"task_{t['id']}"
+        completed = user_data.get("completed_tasks", {}).get(key, False)
 
         if completed:
-            st.success(f"✅ {task['task']} (Completed)")
+            st.success(f"✅ {t['text']} (Completed)")
         else:
-            if st.button(task["task"]):
-                # Redirect to Home Page after logging the water
-                if "tasks_to_log" not in st.session_state:
-                    st.session_state["tasks_to_log"] = []
-                st.session_state["tasks_to_log"].append(task)
+            if st.button(t["text"], key=key):
+                # mark completed locally & in firebase
+                user_data.setdefault("completed_tasks", {})[key] = True
+                user_data["rewards"] = user_data.get("rewards", 0) + 10
 
-                # Mark as completed and reward
-                user_data.setdefault("completed_tasks", {})[task_key] = True
-                user_data["rewards"] += 10  # Reward points
-                firebase_put(f"users/{username}", user_data)
+                # persist to firebase (use patch so entire user record not needed)
+                firebase_patch(f"users/{username}", {"completed_tasks": user_data["completed_tasks"], "rewards": user_data["rewards"]})
+
+                # add the task to session_state so home_page will prompt to log it
+                st.session_state["tasks_to_log"].append(t)
 
                 st.success("🎉 Task completed! You earned +10 points!")
-                st.session_state["page"] = "Home"  # Go to home page
-                st.experimental_rerun()
+                # redirect to home to prompt the logging
+                st.session_state["page"] = "home"
+                st.rerun()
 
+    st.markdown("---")
     st.markdown(f"**🏆 Total Rewards:** {user_data.get('rewards', 0)} points")
+    st.caption("Tasks reset each day when you reset your daily log (you can extend to permanent history).")
 
 def settings_page():
     st.title("⚙️ Settings")
@@ -426,4 +440,5 @@ elif st.session_state["page"] == "tasks":
     tasks_page()
 elif st.session_state["page"] == "settings":
     settings_page()
+
 
