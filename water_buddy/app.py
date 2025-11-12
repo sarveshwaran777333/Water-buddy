@@ -354,6 +354,22 @@ def tasks_page():
     st.markdown("---")
     st.markdown(f"**🏆 Total Rewards:** {user_data.get('rewards', 0)} points")
     st.caption("Tasks reset each day when you reset your daily log (you can extend to permanent history).")
+st.divider()
+    st.subheader("🚀 Navigation")
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        if st.button("🏠 Go to Home"):
+            st.session_state["page"] = "home"
+            st.rerun()
+    with col2:
+        if st.button("⚙️ Settings"):
+            st.session_state["page"] = "settings"
+            st.rerun()
+    with col3:
+        if st.button("🚪 Logout"):
+            st.session_state.clear()
+            st.session_state["page"] = "login"
+            st.rerun()
 
 def settings_page():
     st.title("⚙️ Settings")
@@ -440,5 +456,6 @@ elif st.session_state["page"] == "tasks":
     tasks_page()
 elif st.session_state["page"] == "settings":
     settings_page()
+
 
 
