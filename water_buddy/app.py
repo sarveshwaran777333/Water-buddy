@@ -1,7 +1,7 @@
 import streamlit as st
-import requests, hashlib, json, datetime
+import requests
+import datetime
 import matplotlib.pyplot as plt
-
 # =========================
 # CONFIG
 # =========================
@@ -166,10 +166,7 @@ def signup_page():
             st.session_state["page"] = "login"
 
 
-import streamlit as st
-import requests
-import datetime
-import matplotlib.pyplot as plt
+
 
 def home_page():
     st.title("🏠 Water Buddy Home")
@@ -355,5 +352,6 @@ elif st.session_state["page"] == "tasks":
     tasks_page()
 elif st.session_state["page"] == "settings":
     settings_page()
+
 
 
