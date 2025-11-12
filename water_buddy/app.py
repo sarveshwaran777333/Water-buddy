@@ -2,6 +2,7 @@ import streamlit as st
 import requests
 import datetime
 import matplotlib.pyplot as plt
+import hashlib
 # =========================
 # CONFIG
 # =========================
@@ -386,6 +387,7 @@ elif st.session_state["page"] == "tasks":
     tasks_page()
 elif st.session_state["page"] == "settings":
     settings_page()
+
 
 
 
