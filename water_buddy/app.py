@@ -62,37 +62,56 @@ def set_goal_based_on_climate(temp):
 
 
 def apply_theme_and_font(theme, font):
-    """Apply app-wide styling."""
+    """Apply theme, font size, and button colors."""
     if theme == "Dark":
-        st.markdown(
-            """
-            <style>
-            .stApp {background-color: #121212; color: #f5f5f5;}
-            </style>
-            """,
-            unsafe_allow_html=True,
-        )
+        st.markdown("""
+        <style>
+        .stApp {
+            background-color: #121212;
+            color: #f5f5f5;
+        }
+        div.stButton > button:first-child {
+            background-color: #f5f5f5;
+            color: #000000;
+            border-radius: 10px;
+            border: none;
+            padding: 0.5em 1em;
+        }
+        div.stButton > button:first-child:hover {
+            background-color: #dddddd;
+            color: #000;
+        }
+        </style>
+        """, unsafe_allow_html=True)
     else:
-        st.markdown(
-            """
-            <style>
-            .stApp {background-color: #ffffff; color: #000000;}
-            </style>
-            """,
-            unsafe_allow_html=True,
-        )
+        st.markdown("""
+        <style>
+        .stApp {
+            background-color: #ffffff;
+            color: #000000;
+        }
+        div.stButton > button:first-child {
+            background-color: #2196F3;
+            color: #ffffff;
+            border-radius: 10px;
+            border: none;
+            padding: 0.5em 1em;
+        }
+        div.stButton > button:first-child:hover {
+            background-color: #1976D2;
+            color: #fff;
+        }
+        </style>
+        """, unsafe_allow_html=True)
 
     font_sizes = {"Small": "14px", "Medium": "16px", "Large": "18px"}
-    st.markdown(
-        f"""
-        <style>
-        body, p, div, input, button, label {{
-            font-size: {font_sizes.get(font, '16px')} !important;
-        }}
-        </style>
-        """,
-        unsafe_allow_html=True,
-    )
+    st.markdown(f"""
+    <style>
+    body, p, div, input, button, label {{
+        font-size: {font_sizes.get(font, '16px')} !important;
+    }}
+    </style>
+    """, unsafe_allow_html=True)
 
 # =========================
 # PAGE FUNCTIONS
@@ -336,4 +355,5 @@ elif st.session_state["page"] == "tasks":
     tasks_page()
 elif st.session_state["page"] == "settings":
     settings_page()
+
 
