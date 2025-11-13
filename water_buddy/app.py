@@ -127,15 +127,26 @@ def login_page():
     password = st.text_input("Password", type="password")
 
     if st.button("Login"):
+        if not username or not password:
+            st.warning("⚠️ Please enter both username and password.")
+            return
+
         users = firebase_get("users")
+        if not users:
+            st.error("❌ No accounts found. Please sign up first.")
+            return
+
         if username in users and users[username]["password"] == hash_password(password):
             st.session_state["user"] = username
             st.session_state["page"] = "home"
             st.success("✅ Login successful!")
             st.rerun()
+        elif username not in users:
+            st.error("❌ Username does not exist. Please sign up first.")
         else:
-            st.error("❌ Invalid username or password.")
+            st.error("❌ Incorrect password. Try again.")
 
+    st.markdown("---")
     st.write("Don't have an account?")
     if st.button("Sign Up"):
         st.session_state["page"] = "signup"
@@ -148,42 +159,51 @@ def signup_page():
     password = st.text_input("Choose a Password", type="password")
 
     if st.button("Sign Up"):
+        if not username or not password:
+            st.warning("⚠️ Please enter both username and password.")
+            return
+
         users = firebase_get("users")
+        if users is None:
+            users = {}
+
         if username in users:
-            st.error("Username already exists.")
-        else:
-            # default safe coordinates (Chennai)
-            lat, lon = 13.0827, 80.2707
-            default_city = "Chennai"
+            st.error("❌ Username already exists. Please choose another one.")
+            return
 
-            # Attempt to get user location
-            try:
-                headers = {"User-Agent": "WaterBuddyApp/1.0 (contact@example.com)"}
-                url = f"https://nominatim.openstreetmap.org/search?city={default_city}&format=json"
-                r = requests.get(url, headers=headers, timeout=10)
-                geo = r.json()
-                if isinstance(geo, list) and len(geo) > 0:
-                    lat = float(geo[0]["lat"])
-                    lon = float(geo[0]["lon"])
-            except:
-                st.warning("⚠️ Location fetch failed, using Chennai defaults.")
+        lat, lon = 13.0827, 80.2707
+        default_city = "Chennai"
 
-            user_data = {
-                "password": hash_password(password),
-                "goal": 2000,
-                "logged": 0,
-                "location": default_city,
-                "lat": lat,
-                "lon": lon,
-                "theme": "Light",
-                "font": "Medium",
-                "last_reset": str(datetime.date.today()),
-                "history": []
-            }
+        try:
+            headers = {"User-Agent": "WaterBuddyApp/1.0"}
+            url = f"https://nominatim.openstreetmap.org/search?city={default_city}&format=json"
+            r = requests.get(url, headers=headers, timeout=10)
+            geo = r.json()
+            if isinstance(geo, list) and len(geo) > 0:
+                lat = float(geo[0]["lat"])
+                lon = float(geo[0]["lon"])
+        except:
+            st.warning("⚠️ Location fetch failed, using Chennai defaults.")
 
-            firebase_patch(f"users/{username}", user_data)
-            st.success("✅ Account created! You can now log in.")
-            st.session_state["page"] = "login"
+        user_data = {
+            "password": hash_password(password),
+            "goal": 2000,
+            "logged": 0,
+            "location": default_city,
+            "lat": lat,
+            "lon": lon,
+            "theme": "Light",
+            "font": "Medium",
+            "last_reset": str(datetime.date.today()),
+            "history": [],
+            "rewards": 0,
+            "completed_tasks": {},
+        }
+
+        firebase_patch(f"users/{username}", user_data)
+        st.success("✅ Account created successfully! You can now log in.")
+        st.session_state["page"] = "login"
+        st.rerun()
 
 
 def home_page():
@@ -210,11 +230,10 @@ def home_page():
 
     if st.button("Update Location"):
         try:
-            headers = {"User-Agent": "WaterBuddyApp/1.0 (contact@example.com)"}
+            headers = {"User-Agent": "WaterBuddyApp/1.0"}
             url = f"https://nominatim.openstreetmap.org/search?city={city}&format=json"
             response = requests.get(url, headers=headers, timeout=10)
             geo = response.json()
-
             if isinstance(geo, list) and len(geo) > 0:
                 lat, lon = float(geo[0]["lat"]), float(geo[0]["lon"])
                 user_data["location"], user_data["lat"], user_data["lon"] = city, lat, lon
@@ -293,12 +312,6 @@ def home_page():
 
 
 def tasks_page():
-    """
-    Interactive tasks page:
-    - Clicking a task marks it completed, gives +10 reward points,
-      adds the task to session_state.tasks_to_log (so home_page will prompt to log water),
-      and redirects user to the home page.
-    """
     st.title("📋 Daily Hydration Tasks")
 
     username = st.session_state.get("user")
@@ -308,13 +321,11 @@ def tasks_page():
 
     user_data = firebase_get(f"users/{username}") or {}
 
-    # Default storage for completed tasks and rewards
     if "completed_tasks" not in user_data:
         user_data["completed_tasks"] = {}
     if "rewards" not in user_data:
         user_data["rewards"] = 0
 
-    # Define tasks (id, text, amount_to_log_in_ml)
     tasks = [
         {"id": "t1", "text": "Drink 1 cup of water now (200 ml)", "amount": 200},
         {"id": "t2", "text": "Drink water before your meal (250 ml)", "amount": 250},
@@ -324,7 +335,6 @@ def tasks_page():
 
     st.write("💧 Click a task to complete it and earn rewards!")
 
-    # Ensure session_state list exists to pass tasks to home_page for logging
     if "tasks_to_log" not in st.session_state:
         st.session_state["tasks_to_log"] = []
 
@@ -336,11 +346,9 @@ def tasks_page():
             st.success(f"✅ {t['text']} (Completed)")
         else:
             if st.button(t["text"], key=key):
-                # mark completed locally & in firebase
                 user_data.setdefault("completed_tasks", {})[key] = True
                 user_data["rewards"] = user_data.get("rewards", 0) + 10
 
-                # persist to firebase (use patch so entire user record not needed)
                 firebase_patch(
                     f"users/{username}",
                     {
@@ -349,19 +357,15 @@ def tasks_page():
                     }
                 )
 
-                # add the task to session_state so home_page will prompt to log it
                 st.session_state["tasks_to_log"].append(t)
-
                 st.success("🎉 Task completed! You earned +10 points!")
-                # redirect to home to prompt the logging
                 st.session_state["page"] = "home"
                 st.rerun()
 
     st.markdown("---")
     st.markdown(f"**🏆 Total Rewards:** {user_data.get('rewards', 0)} points")
-    st.caption("Tasks reset each day when you reset your daily log (you can extend to permanent history).")
+    st.caption("Tasks reset each day when you reset your daily log.")
 
-    # --- Navigation Buttons ---
     st.divider()
     st.subheader("🚀 Navigation")
     col1, col2, col3 = st.columns(3)
@@ -378,6 +382,7 @@ def tasks_page():
             st.session_state.clear()
             st.session_state["page"] = "login"
             st.rerun()
+
 
 def settings_page():
     st.title("⚙️ Settings")
@@ -464,7 +469,3 @@ elif st.session_state["page"] == "tasks":
     tasks_page()
 elif st.session_state["page"] == "settings":
     settings_page()
-
-
-
-
