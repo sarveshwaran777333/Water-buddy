@@ -138,7 +138,7 @@ def login_page():
 
         if username in users and users[username]["password"] == hash_password(password):
             st.session_state["user"] = username
-            st.session_state["page"] = "home"
+            st.session_state["page"] = "settings"
             st.success("✅ Login successful!")
             st.rerun()
         elif username not in users:
@@ -469,3 +469,4 @@ elif st.session_state["page"] == "tasks":
     tasks_page()
 elif st.session_state["page"] == "settings":
     settings_page()
+
