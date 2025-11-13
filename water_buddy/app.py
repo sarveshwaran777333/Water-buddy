@@ -10,6 +10,28 @@ import hashlib
 FIREBASE_URL = "https://waterhydrator-9ecad-default-rtdb.asia-southeast1.firebasedatabase.app"
 
 # =========================
+# AGE GROUPS -> GOAL (mL)
+# =========================
+AGE_GROUP_GOALS_ML = {
+    "Infants (0–6 months)": 700,
+    "Infants (7–12 months)": 800,
+    "Children (1–3 years)": 1300,
+    "Children (4–8 years)": 1700,
+    "Boys (9–13 years)": 2400,
+    "Girls (9–13 years)": 2100,
+    "Boys (14–18 years)": 3300,
+    "Girls (14–18 years)": 2300,
+    "Men (19+ years)": 3700,
+    "Women (19+ years)": 2700,
+    "Pregnant women": 3000,
+    "Breastfeeding women": 3800,
+    "Older adults (65+)": 2250,  # chosen midpoint in 2000-2500 range
+    "None / Prefer climate-based": None
+}
+
+AGE_GROUP_OPTIONS = list(AGE_GROUP_GOALS_ML.keys())
+
+# =========================
 # UTILITY FUNCTIONS
 # =========================
 
@@ -132,12 +154,13 @@ def login_page():
             return
 
         users = firebase_get("users")
-        if not users:
+        if users == {}:
             st.error("❌ No accounts found. Please sign up first.")
             return
 
         if username in users and users[username]["password"] == hash_password(password):
             st.session_state["user"] = username
+            # keep behavior you had earlier (opening settings after login)
             st.session_state["page"] = "settings"
             st.success("✅ Login successful!")
             st.rerun()
@@ -188,6 +211,8 @@ def signup_page():
         user_data = {
             "password": hash_password(password),
             "goal": 2000,
+            "age": 18,
+            "age_group": "None / Prefer climate-based",
             "logged": 0,
             "location": default_city,
             "lat": lat,
@@ -209,20 +234,30 @@ def signup_page():
 def home_page():
     st.title("🏠 Water Buddy Home")
 
-    username = st.session_state["user"]
+    username = st.session_state.get("user")
+    if not username:
+        st.error("⚠️ No user in session. Please log in.")
+        st.session_state["page"] = "login"
+        st.rerun()
+        return
+
     user_data = firebase_get(f"users/{username}")
 
     if not user_data:
         st.error("⚠️ User data not found. Please log in again.")
         st.session_state["page"] = "login"
         st.rerun()
+        return
 
-    apply_theme_and_font(user_data["theme"], user_data["font"])
+    apply_theme_and_font(user_data.get("theme", "Light"), user_data.get("font", "Medium"))
 
     today = str(datetime.date.today())
+    # Reset daily log if needed
     if user_data.get("last_reset") != today:
         user_data["logged"] = 0
         user_data["last_reset"] = today
+        # reset daily completed tasks optionally:
+        user_data["completed_tasks"] = {}
         firebase_patch(f"users/{username}", user_data)
 
     st.write("📍 Enter your city:")
@@ -248,54 +283,92 @@ def home_page():
             user_data.update({"location": "Madurai", "lat": 9.9252, "lon": 78.1198})
             firebase_patch(f"users/{username}", user_data)
 
+    # Determine goal: prefer saved age_group goal; otherwise climate-based
     lat, lon = user_data.get("lat", 9.9252), user_data.get("lon", 78.1198)
     temp = get_weather_data(lat, lon)
-    goal = set_goal_based_on_climate(temp)
-    user_data["goal"] = goal
-    firebase_patch(f"users/{username}", user_data)
+    climate_goal = set_goal_based_on_climate(temp)
 
-    st.markdown(f"### 🌤️ {user_data['location']}: {temp}°C")
+    stored_age_group = user_data.get("age_group")
+    stored_goal = user_data.get("goal")
+
+    if stored_age_group and stored_age_group != "None / Prefer climate-based":
+        # Use stored goal (ensure exists in mapping)
+        mapped = AGE_GROUP_GOALS_ML.get(stored_age_group)
+        if mapped is not None:
+            goal = mapped
+        else:
+            # fallback if mapping missing
+            goal = stored_goal or climate_goal
+    else:
+        # No age group preference: use climate-based goal
+        goal = climate_goal
+        # update user's goal in firebase so UI shows consistent value
+        user_data["goal"] = goal
+        firebase_patch(f"users/{username}", {"goal": goal})
+
+    # If stored goal differs from computed goal (and age_group is set), keep stored goal
+    user_data["goal"] = goal
+    firebase_patch(f"users/{username}", {"goal": goal})
+
+    st.markdown(f"### 🌤️ {user_data.get('location', 'Unknown')}: {temp}°C")
     st.markdown(f"**🎯 Daily Goal:** {goal} ml")
-    st.markdown(f"**💧 Logged So Far:** {user_data['logged']} ml")
+    st.markdown(f"**💧 Logged So Far:** {user_data.get('logged', 0)} ml")
     st.write("🕒", datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
 
-    progress = min(user_data["logged"] / goal, 1.0)
+    # progress bar
+    progress = 0.0
+    try:
+        progress = min(user_data.get("logged", 0) / float(goal), 1.0)
+    except Exception:
+        progress = 0.0
     st.progress(progress)
     st.caption(f"{int(progress * 100)}% of your goal achieved!")
 
+    # Plot 1: Bar
     fig, ax = plt.subplots(figsize=(5, 2.5))
-    ax.bar(["Goal", "Logged"], [goal, user_data["logged"]],
+    ax.bar(["Goal", "Logged"], [goal, user_data.get("logged", 0)],
            color=["#90CAF9", "#42A5F5"], width=0.5)
     ax.set_ylabel("ml")
     ax.set_title("Today's Hydration Progress")
     ax.grid(axis="y", linestyle="--", alpha=0.5)
     st.pyplot(fig)
 
+    # Ensure history exists and update today's entry
     if "history" not in user_data:
         user_data["history"] = []
 
-    if not user_data["history"] or user_data["history"][-1]["date"] != today:
-        user_data["history"].append({"date": today, "logged": user_data["logged"]})
+    if not user_data["history"] or user_data["history"][-1].get("date") != today:
+        user_data["history"].append({"date": today, "logged": user_data.get("logged", 0)})
         if len(user_data["history"]) > 7:
             user_data["history"].pop(0)
-        firebase_patch(f"users/{username}", user_data)
+        firebase_patch(f"users/{username}", {"history": user_data["history"]})
 
+    # Weekly Trend
     st.subheader("📊 Weekly Hydration Trend")
-    dates = [d["date"][-5:] for d in user_data["history"]]
-    logged = [d["logged"] for d in user_data["history"]]
+    dates = [d["date"][-5:] for d in user_data.get("history", [])]
+    logged = [d["logged"] for d in user_data.get("history", [])]
 
-    fig2, ax2 = plt.subplots(figsize=(5, 2.5))
-    ax2.plot(dates, logged, marker="o", color="#42A5F5")
-    ax2.set_xlabel("Date")
-    ax2.set_ylabel("Water (ml)")
-    ax2.set_title("Hydration Over the Last 7 Days")
-    ax2.grid(alpha=0.4)
-    st.pyplot(fig2)
+    if dates and logged:
+        fig2, ax2 = plt.subplots(figsize=(5, 2.5))
+        ax2.plot(dates, logged, marker="o")
+        ax2.set_xlabel("Date")
+        ax2.set_ylabel("Water (ml)")
+        ax2.set_title("Hydration Over the Last 7 Days")
+        ax2.grid(alpha=0.4)
+        st.pyplot(fig2)
+    else:
+        st.info("No history yet — log some water to see trends!")
 
-    add = st.number_input("Add water intake (ml):", min_value=0)
+    # If tasks were completed and pushed to session_state, show prompt to log
+    if "tasks_to_log" in st.session_state and st.session_state["tasks_to_log"]:
+        st.info("You completed tasks — log the recommended water from those tasks on Home.")
+        st.write(st.session_state["tasks_to_log"])
+
+    # Add water input
+    add = st.number_input("Add water intake (ml):", min_value=0, step=50)
     if st.button("Log Water"):
-        user_data["logged"] += add
-        firebase_patch(f"users/{username}", user_data)
+        user_data["logged"] = user_data.get("logged", 0) + int(add)
+        firebase_patch(f"users/{username}", {"logged": user_data["logged"]})
         if user_data["logged"] >= goal:
             st.balloons()
             st.success("🎉 Goal achieved! Stay hydrated 💦")
@@ -306,9 +379,11 @@ def home_page():
     with col1:
         if st.button("Go to Tasks 📋"):
             st.session_state["page"] = "tasks"
+            st.rerun()
     with col2:
         if st.button("Settings ⚙️"):
             st.session_state["page"] = "settings"
+            st.rerun()
 
 
 def tasks_page():
@@ -387,41 +462,69 @@ def tasks_page():
 def settings_page():
     st.title("⚙️ Settings")
 
-    username = st.session_state["user"]
-    user_data = firebase_get(f"users/{username}")
+    username = st.session_state.get("user")
+    if not username:
+        st.error("⚠️ Please log in first.")
+        st.session_state["page"] = "login"
+        st.rerun()
+        return
 
-    apply_theme_and_font(user_data["theme"], user_data["font"])
+    user_data = firebase_get(f"users/{username}") or {}
+
+    apply_theme_and_font(user_data.get("theme", "Light"), user_data.get("font", "Medium"))
 
     st.subheader("🎨 Theme & Font")
-    theme = st.radio("Choose Theme:", ["Light", "Dark"], index=0 if user_data["theme"] == "Light" else 1)
+    theme = st.radio("Choose Theme:", ["Light", "Dark"], index=0 if user_data.get("theme", "Light") == "Light" else 1)
     font = st.radio("Font Size:", ["Small", "Medium", "Large"],
-                    index=["Small", "Medium", "Large"].index(user_data["font"]))
+                    index=["Small", "Medium", "Large"].index(user_data.get("font", "Medium")))
 
-    if theme != user_data["theme"] or font != user_data["font"]:
+    if theme != user_data.get("theme") or font != user_data.get("font"):
         user_data["theme"], user_data["font"] = theme, font
-        firebase_patch(f"users/{username}", user_data)
+        firebase_patch(f"users/{username}", {"theme": theme, "font": font})
         st.success("✅ Display settings updated!")
         st.rerun()
 
     st.divider()
     st.subheader("👤 Age Settings")
-    age = st.number_input("Enter your age:", min_value=5, max_value=100, value=int(user_data.get("age", 18)))
+    # keep the numeric age input (optional)
+    age = st.number_input("Enter your age:", min_value=0, max_value=120, value=int(user_data.get("age", 18)))
     if st.button("💾 Save Age"):
-        user_data["age"] = age
-        firebase_patch(f"users/{username}", user_data)
+        user_data["age"] = int(age)
+        firebase_patch(f"users/{username}", {"age": user_data["age"]})
         st.success("🎉 Age updated successfully!")
+
+    st.divider()
+    st.subheader("🧭 Age Group (select to auto-set goal)")
+
+    # preselect current age group if present
+    current_group = user_data.get("age_group", "None / Prefer climate-based")
+    selected = st.selectbox("Choose your age group:", AGE_GROUP_OPTIONS, index=AGE_GROUP_OPTIONS.index(current_group) if current_group in AGE_GROUP_OPTIONS else AGE_GROUP_OPTIONS.index("None / Prefer climate-based"))
+
+    if st.button("Set Age Group & Update Goal"):
+        # map selection to goal
+        mapped_goal = AGE_GROUP_GOALS_ML.get(selected)
+        # If user chooses 'None / Prefer climate-based', we will compute time-of-day/climate goal on home page
+        if mapped_goal is None:
+            # Remove age_group preference and let climate decide
+            firebase_patch(f"users/{username}", {"age_group": "None / Prefer climate-based"})
+            st.success("✅ Age group preference cleared — app will use climate-based goal.")
+        else:
+            # Save both age_group and goal (in mL)
+            firebase_patch(f"users/{username}", {"age_group": selected, "goal": mapped_goal})
+            st.success(f"✅ Age group set to '{selected}' and daily goal updated to {mapped_goal} ml.")
+        st.rerun()
 
     st.divider()
     st.subheader("💧 Water Log Controls")
     if st.button("🔁 Reset Daily Water Log"):
-        user_data["logged"] = 0
-        firebase_patch(f"users/{username}", user_data)
+        firebase_patch(f"users/{username}", {"logged": 0})
         st.success("Water log reset for today!")
+        st.rerun()
 
     st.divider()
     st.subheader("🧩 Reset All Settings")
     if st.button("♻️ Reset to Default Settings"):
-        user_data.update({
+        defaults = {
             "theme": "Light",
             "font": "Medium",
             "goal": 2000,
@@ -429,9 +532,12 @@ def settings_page():
             "location": "Chennai",
             "lat": 13.0827,
             "lon": 80.2707,
-            "age": 18
-        })
-        firebase_patch(f"users/{username}", user_data)
+            "age": 18,
+            "age_group": "None / Prefer climate-based",
+            "completed_tasks": {},
+            "rewards": 0
+        }
+        firebase_patch(f"users/{username}", defaults)
         st.success("✅ Settings reset to default.")
         st.rerun()
 
@@ -453,6 +559,7 @@ def settings_page():
             st.session_state["page"] = "login"
             st.rerun()
 
+
 # =========================
 # MAIN APP CONTROLLER
 # =========================
@@ -469,4 +576,3 @@ elif st.session_state["page"] == "tasks":
     tasks_page()
 elif st.session_state["page"] == "settings":
     settings_page()
-
