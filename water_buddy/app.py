@@ -18,7 +18,7 @@ AGE_GROUP_GOALS_ML = {
     "age 19-50": 3000,
     "Older adults (65+)": 35000,
 }
-
+AGE_GROUP_OPTIONS = list(AGE_GROUP_GOALS_ML.keys())
 
 # =========================
 # UTILITY FUNCTIONS
@@ -500,7 +500,7 @@ def settings_page():
         else:
             # Save both age_group and goal (in mL)
             firebase_patch(f"users/{username}", {"age_group": selected, "goal": mapped_goal})
-            AGE_GROUP_OPTIONS = list(AGE_GROUP_GOALS_ML.keys())
+            
             selected_age_group = st.selectbox("Select your age group", AGE_GROUP_OPTIONS)
             default_goal = AGE_GROUP_GOALS_ML.get(selected_age_group, "")
             custom_goal = st.number_input(
@@ -573,6 +573,7 @@ elif st.session_state["page"] == "tasks":
     tasks_page()
 elif st.session_state["page"] == "settings":
     settings_page()
+
 
 
 
