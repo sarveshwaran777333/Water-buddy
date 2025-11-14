@@ -13,19 +13,10 @@ FIREBASE_URL = "https://waterhydrator-9ecad-default-rtdb.asia-southeast1.firebas
 # AGE GROUPS -> GOAL (mL)
 # =========================
 AGE_GROUP_GOALS_ML = {
-    "Infants (0–6 months)": 700,
-    "Infants (7–12 months)": 800,
-    "Children (1–3 years)": 1300,
-    "Children (4–8 years)": 1700,
-    "Boys (9–13 years)": 2400,
-    "Girls (9–13 years)": 2100,
-    "Boys (14–18 years)": 3300,
-    "Girls (14–18 years)": 2300,
-    "Men (19+ years)": 3700,
-    "Women (19+ years)": 2700,
-    "Pregnant women": 3000,
-    "Breastfeeding women": 3800,
-    "Older adults (65+)": 2250,  # chosen midpoint in 2000-2500 range
+    "age 6-12": 2000,
+    "age 13-18": 2500,
+    "age 19-50": 3000,
+    "Older adults (65+)": 35000,  # chosen midpoint in 2000-2500 range
     "None / Prefer climate-based": None
 }
 
@@ -576,3 +567,4 @@ elif st.session_state["page"] == "tasks":
     tasks_page()
 elif st.session_state["page"] == "settings":
     settings_page()
+
