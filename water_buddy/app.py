@@ -2,6 +2,7 @@ import streamlit as st
 import requests
 import datetime
 import matplotlib.pyplot as plt
+import matplotlib as mpl
 import hashlib
 
 # =========================
@@ -16,7 +17,7 @@ AGE_GROUP_GOALS_ML = {
     "age 6-12": 2000,
     "age 13-18": 2500,
     "age 19-50": 3000,
-    "Older adults (65+)": 35000,
+    "Older adults (65+)": 3500,
 }
 AGE_GROUP_OPTIONS = list(AGE_GROUP_GOALS_ML.keys())
 
@@ -50,82 +51,129 @@ def firebase_patch(path, data):
         st.warning("⚠️ Firebase update failed.")
 
 
-def get_weather_data(lat, lon):
-    """Fetch temperature using Open-Meteo API."""
-    try:
-        url = f"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}&current_weather=true"
-        r = requests.get(url, timeout=10)
-        data = r.json()
-        if "current_weather" in data:
-            return round(data["current_weather"]["temperature"], 1)
-        return 30
-    except:
-        st.warning("Couldn't fetch weather. Using default 30°C.")
-        return 30
-
-
-def set_goal_based_on_climate(temp):
-    if temp >= 35:
-        return 3500
-    elif temp >= 30:
-        return 3000
-    elif temp >= 25:
-        return 2500
-    else:
-        return 2000
-
-
-def apply_theme_and_font(theme, font):
-    """Apply custom theme and font style."""
-    if theme == "Dark":
-        st.markdown("""
-        <style>
-        .stApp {
-            background-color: #121212;
-            color: #f5f5f5;
-        }
-        div.stButton > button:first-child {
-            background-color: #f5f5f5;
-            color: #000000;
-            border-radius: 10px;
-            border: none;
-            padding: 0.5em 1em;
-        }
-        div.stButton > button:first-child:hover {
-            background-color: #dddddd;
-            color: #000;
-        }
-        </style>
-        """, unsafe_allow_html=True)
-    else:
-        st.markdown("""
-        <style>
-        .stApp {
-            background-color: #ffffff;
-            color: #000000;
-        }
-        div.stButton > button:first-child {
-            background-color: #2196F3;
-            color: #ffffff;
-            border-radius: 10px;
-            border: none;
-            padding: 0.5em 1em;
-        }
-        div.stButton > button:first-child:hover {
-            background-color: #1976D2;
-            color: #fff;
-        }
-        </style>
-        """, unsafe_allow_html=True)
-
+def _get_theme_styles(theme, font):
+    """Return (text_color, background_css, button_bg, button_text) for theme."""
     font_sizes = {"Small": "14px", "Medium": "16px", "Large": "18px"}
-    st.markdown(f"""
+    fs = font_sizes.get(font, "16px")
+
+    if theme == "Dark":
+        text_color = "#ffffff"              # pure white
+        page_bg = "#0f1720"                # deep dark
+        accent = "#00bcd4"                 # aqua-ish for small accents if needed
+        button_bg = "#ffffff"              # buttons white in dark mode
+        button_text = "#000000"            # black text on white buttons
+    elif theme == "Aqua":
+        text_color = "#002b5c"             # dark blue text
+        page_bg = "linear-gradient(135deg, #e6fbff 0%, #d0f7ff 100%)"  # soft aqua bg
+        accent = "#0288d1"
+        button_bg = "#8a2be2"              # purple buttons
+        button_text = "#ffffff"
+    else:  # Light (default)
+        text_color = "#000000"
+        page_bg = "#ffffff"
+        accent = "#2196F3"
+        button_bg = "#2196F3"
+        button_text = "#ffffff"
+
+    # A broad CSS that targets many Streamlit elements. Streamlit's internal classes vary,
+    # so we use broad selectors (body, div, label, .stMarkdown, input, select, textarea, etc.).
+    css = f"""
     <style>
-    body, p, div, input, button, label {{
-        font-size: {font_sizes.get(font, '16px')} !important;
+    /* Page background */
+    .stApp {{
+        background: {page_bg} !important;
+    }}
+
+    /* Global text */
+    body, .stApp, .css-1d391kg, .css-1lcbmhc, .stMarkdown, p, label, span, div, h1, h2, h3, h4, h5, h6 {{
+        color: {text_color} !important;
+        font-size: {fs} !important;
+    }}
+
+    /* Headings */
+    h1, h2, h3, h4, h5, h6 {{
+        color: {text_color} !important;
+    }}
+
+    /* Buttons */
+    div.stButton > button:first-child {{
+        background-color: {button_bg} !important;
+        color: {button_text} !important;
+        border-radius: 10px !important;
+        border: none !important;
+        padding: 0.5em 1em !important;
+        box-shadow: none !important;
+    }}
+    div.stButton > button:first-child:hover {{
+        opacity: 0.95;
+        transform: translateY(-1px);
+    }}
+
+    /* Inputs, selects, textareas */
+    input, textarea, select {{
+        color: {text_color} !important;
+        background: rgba(255,255,255,0.03) !important;
+        border: 1px solid rgba(0,0,0,0.08) !important;
+    }}
+
+    /* Streamlit labels & widget text */
+    .stTextInput label, .stNumberInput label, label {{
+        color: {text_color} !important;
+    }}
+
+    /* Radio / Selectbox / Checkbox text */
+    .stRadio, .stSelectbox, .stCheckbox, .stMultiSelect {{
+        color: {text_color} !important;
+    }}
+
+    /* Sidebar (if used) */
+    .css-1lcbmhc .stApp {{
+        color: {text_color} !important;
+    }}
+
+    /* Captions and small text */
+    .stCaption, .css-4rbku5, .css-1avcm0n {{
+        color: {text_color} !important;
+    }}
+
+    /* Links */
+    a {{
+        color: {accent} !important;
+    }}
+
+    /* Make placeholder text slightly muted but matching theme */
+    ::placeholder {{
+        color: {text_color} !important;
+        opacity: 0.6;
+    }}
+
+    /* Ensure widget icons adjust (if any) */
+    svg {{
+        fill: {text_color} !important;
     }}
     </style>
-    """, unsafe_allow_html=True)
+    """
+    return text_color, css, button_bg, button_text
+
+
+def apply_theme_and_font(theme: str, font: str):
+    """
+    Apply custom CSS for the chosen theme and adjust matplotlib colors.
+    Call this at the top of every page render so matplotlib and the page are consistent.
+    """
+    text_color, css, button_bg, button_text = _get_theme_styles(theme, font)
+    st.markdown(css, unsafe_allow_html=True)
+
+    # Update matplotlib colors so charts match the theme
+    mpl.rcParams.update({
+        'text.color': text_color,
+        'axes.labelcolor': text_color,
+        'xtick.color': text_color,
+        'ytick.color': text_color,
+        'axes.facecolor': "none",  # keep transparent so it inherits page bg
+        'figure.facecolor': "none",
+    })
+
 
 # =========================
 # PAGE FUNCTIONS
@@ -147,10 +195,9 @@ def login_page():
             st.error("❌ No accounts found. Please sign up first.")
             return
 
-        if username in users and users[username]["password"] == hash_password(password):
+        if username in users and users[username].get("password") == hash_password(password):
             st.session_state["user"] = username
-            # keep behavior you had earlier (opening settings after login)
-            st.session_state["page"] = "settings"
+            st.session_state["page"] = "home"
             st.success("✅ Login successful!")
             st.rerun()
         elif username not in users:
@@ -183,29 +230,13 @@ def signup_page():
             st.error("❌ Username already exists. Please choose another one.")
             return
 
-        lat, lon = 13.0827, 80.2707
-        default_city = "Chennai"
-
-        try:
-            headers = {"User-Agent": "WaterBuddyApp/1.0"}
-            url = f"https://nominatim.openstreetmap.org/search?city={default_city}&format=json"
-            r = requests.get(url, headers=headers, timeout=10)
-            geo = r.json()
-            if isinstance(geo, list) and len(geo) > 0:
-                lat = float(geo[0]["lat"])
-                lon = float(geo[0]["lon"])
-        except:
-            st.warning("⚠️ Location fetch failed, using Chennai defaults.")
-
+        # Defaults
         user_data = {
             "password": hash_password(password),
-            "goal": 2000,
+            "goal": AGE_GROUP_GOALS_ML["age 19-50"],
             "age": 18,
-            "age_group": "None / Prefer climate-based",
+            "age_group": "age 19-50",
             "logged": 0,
-            "location": default_city,
-            "lat": lat,
-            "lon": lon,
             "theme": "Light",
             "font": "Medium",
             "last_reset": str(datetime.date.today()),
@@ -238,6 +269,7 @@ def home_page():
         st.rerun()
         return
 
+    # Apply user's chosen theme/font (default to Light/Medium)
     apply_theme_and_font(user_data.get("theme", "Light"), user_data.get("font", "Medium"))
 
     today = str(datetime.date.today())
@@ -245,61 +277,20 @@ def home_page():
     if user_data.get("last_reset") != today:
         user_data["logged"] = 0
         user_data["last_reset"] = today
-        # reset daily completed tasks optionally:
         user_data["completed_tasks"] = {}
         firebase_patch(f"users/{username}", user_data)
 
-    st.write("📍 Enter your city:")
-    city = st.text_input("City", value=user_data.get("location", "Chennai"))
+    # Determine goal: use age_group mapping only
+    selected_group = user_data.get("age_group")
+    if selected_group in AGE_GROUP_GOALS_ML:
+        goal = AGE_GROUP_GOALS_ML[selected_group]
+    else:
+        goal = user_data.get("goal", AGE_GROUP_GOALS_ML["age 19-50"])
 
-    if st.button("Update Location"):
-        try:
-            headers = {"User-Agent": "WaterBuddyApp/1.0"}
-            url = f"https://nominatim.openstreetmap.org/search?city={city}&format=json"
-            response = requests.get(url, headers=headers, timeout=10)
-            geo = response.json()
-            if isinstance(geo, list) and len(geo) > 0:
-                lat, lon = float(geo[0]["lat"]), float(geo[0]["lon"])
-                user_data["location"], user_data["lat"], user_data["lon"] = city, lat, lon
-                firebase_patch(f"users/{username}", user_data)
-                st.success(f"✅ Location updated to {city}!")
-            else:
-                st.warning("⚠️ Couldn't fetch that city. Using default (Madurai).")
-                user_data.update({"location": "Madurai", "lat": 9.9252, "lon": 78.1198})
-                firebase_patch(f"users/{username}", user_data)
-        except:
-            st.warning("⚠️ Weather service not reachable. Using default (Madurai).")
-            user_data.update({"location": "Madurai", "lat": 9.9252, "lon": 78.1198})
-            firebase_patch(f"users/{username}", user_data)
-
-    # Determine goal: prefer saved age_group goal; otherwise climate-based
-    lat, lon = user_data.get("lat", 9.9252), user_data.get("lon", 78.1198)
-    temp = get_weather_data(lat, lon)
-    climate_goal = set_goal_based_on_climate(temp)
-
-    stored_age_group = user_data.get("age_group")
-    stored_goal = user_data.get("goal")
-
-    #if stored_age_group and stored_age_group != "None / Prefer climate-based":
-        # Use stored goal (ensure exists in mapping)
-       # mapped = AGE_GROUP_GOALS_ML.get(stored_age_group)
-        #if mapped is not None:
-         #   goal = mapped
-        #else:
-            # fallback if mapping missing
-         #   goal = stored_goal or climate_goal
-    #else:
-        # No age group preference: use climate-based goal
-     #   goal = climate_goal
-        # update user's goal in firebase so UI shows consistent value
-      #  user_data["goal"] = goal
-       # firebase_patch(f"users/{username}", {"goal": goal})
-
-    # If stored goal differs from computed goal (and age_group is set), keep stored goal
+    # Save cleaned goal
     user_data["goal"] = goal
     firebase_patch(f"users/{username}", {"goal": goal})
 
-    st.markdown(f"### 🌤️ {user_data.get('location', 'Unknown')}: {temp}°C")
     st.markdown(f"**🎯 Daily Goal:** {goal} ml")
     st.markdown(f"**💧 Logged So Far:** {user_data.get('logged', 0)} ml")
     st.write("🕒", datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
@@ -315,8 +306,7 @@ def home_page():
 
     # Plot 1: Bar
     fig, ax = plt.subplots(figsize=(5, 2.5))
-    ax.bar(["Goal", "Logged"], [goal, user_data.get("logged", 0)],
-           color=["#90CAF9", "#42A5F5"], width=0.5)
+    ax.bar(["Goal", "Logged"], [goal, user_data.get("logged", 0)], width=0.5)
     ax.set_ylabel("ml")
     ax.set_title("Today's Hydration Progress")
     ax.grid(axis="y", linestyle="--", alpha=0.5)
@@ -460,18 +450,27 @@ def settings_page():
 
     user_data = firebase_get(f"users/{username}") or {}
 
-    apply_theme_and_font(user_data.get("theme", "Light"), user_data.get("font", "Medium"))
-
+    # Theme & Font controls will be saved to user profile.
     st.subheader("🎨 Theme & Font")
-    theme = st.radio("Choose Theme:", ["Light", "Dark"], index=0 if user_data.get("theme", "Light") == "Light" else 1)
-    font = st.radio("Font Size:", ["Small", "Medium", "Large"],
-                    index=["Small", "Medium", "Large"].index(user_data.get("font", "Medium")))
 
-    if theme != user_data.get("theme") or font != user_data.get("font"):
-        user_data["theme"], user_data["font"] = theme, font
-        firebase_patch(f"users/{username}", {"theme": theme, "font": font})
-        st.success("✅ Display settings updated!")
-        st.rerun()
+    # Load stored theme (default Light) and font (default Medium)
+    stored_theme = user_data.get("theme", "Light")
+    stored_font = user_data.get("font", "Medium")
+
+    theme = st.radio("Choose Theme:", ["Light", "Dark", "Aqua"],
+                     index=["Light", "Dark", "Aqua"].index(stored_theme) if stored_theme in ["Light", "Dark", "Aqua"] else 0)
+    font = st.radio("Font Size:", ["Small", "Medium", "Large"],
+                    index=["Small", "Medium", "Large"].index(stored_font) if stored_font in ["Small", "Medium", "Large"] else 1)
+
+    # Apply immediately so user sees the effect on the same page
+    apply_theme_and_font(theme, font)
+
+    if (theme != stored_theme) or (font != stored_font):
+        if st.button("💾 Save Display Settings"):
+            user_data["theme"], user_data["font"] = theme, font
+            firebase_patch(f"users/{username}", {"theme": theme, "font": font})
+            st.success("✅ Display settings updated!")
+            st.rerun()
 
     st.divider()
     st.subheader("👤 Age Settings")
@@ -483,33 +482,36 @@ def settings_page():
         st.success("🎉 Age updated successfully!")
 
     st.divider()
-    st.subheader("🧭 Age Group (select to auto-set goal)")
+    st.subheader("🧭 Age Group & Custom Water Goal")
 
-    # preselect current age group if present
-    #current_group = user_data.get("age_group", "None / Prefer climate-based")
-    current_group = user_data.get("age_group")
-    selected = st.selectbox("Choose your age group:", AGE_GROUP_OPTIONS, index=AGE_GROUP_OPTIONS.index(current_group) if current_group in AGE_GROUP_OPTIONS else AGE_GROUP_OPTIONS.index("None / Prefer climate-based"))
+    # Load saved age group and goal
+    current_group = user_data.get("age_group", AGE_GROUP_OPTIONS[0])
+    saved_goal = int(user_data.get("goal", AGE_GROUP_GOALS_ML.get(current_group, AGE_GROUP_GOALS_ML["age 19-50"])))
 
-    if st.button("Set Age Group & Update Goal"):
-        # map selection to goal
-        mapped_goal = AGE_GROUP_GOALS_ML.get(selected)
-        # If user chooses 'None / Prefer climate-based', we will compute time-of-day/climate goal on home page
-        if mapped_goal is None:
-            # Remove age_group preference and let climate decide
-            firebase_patch(f"users/{username}", {"age_group"})
-            st.success("✅ Age group preference cleared — app will use climate-based goal.")
-        else:
-            # Save both age_group and goal (in mL)
-            firebase_patch(f"users/{username}", {"age_group": selected, "goal": mapped_goal})
-            
-            selected_age_group = st.selectbox("Select your age group", AGE_GROUP_OPTIONS)
-            default_goal = AGE_GROUP_GOALS_ML.get(selected_age_group, "")
-            custom_goal = st.number_input(
-                "Standard Water Goal (mL) — you can edit this",
-                value=default_goal,
-                step=100
-            )
-            st.write(f"💧 Your final daily water goal: **{custom_goal} mL**")
+    # Age group selectbox
+    selected_group = st.selectbox(
+        "Choose your age group:",
+        AGE_GROUP_OPTIONS,
+        index=AGE_GROUP_OPTIONS.index(current_group) if current_group in AGE_GROUP_OPTIONS else 0
+    )
+
+    # Default goal based on selected group
+    default_goal = AGE_GROUP_GOALS_ML.get(selected_group, saved_goal)
+
+    # Editable goal box
+    custom_goal = st.number_input(
+        "Standard Water Goal (mL) — you can edit this",
+        value=int(default_goal),
+        step=100
+    )
+
+    # Save both group + goal
+    if st.button("💾 Save Age Group & Goal"):
+        firebase_patch(f"users/{username}", {
+            "age_group": selected_group,
+            "goal": int(custom_goal)
+        })
+        st.success(f"Saved! Age group set to '{selected_group}', daily goal = {custom_goal} mL.")
         st.rerun()
 
     st.divider()
@@ -525,13 +527,10 @@ def settings_page():
         defaults = {
             "theme": "Light",
             "font": "Medium",
-            "goal": 2000,
+            "goal": AGE_GROUP_GOALS_ML["age 19-50"],
             "logged": 0,
-            "location": "Chennai",
-            "lat": 13.0827,
-            "lon": 80.2707,
             "age": 18,
-            "age_group": "None / Prefer climate-based",
+            "age_group": "age 19-50",
             "completed_tasks": {},
             "rewards": 0
         }
@@ -574,8 +573,3 @@ elif st.session_state["page"] == "tasks":
     tasks_page()
 elif st.session_state["page"] == "settings":
     settings_page()
-
-
-
-
-
