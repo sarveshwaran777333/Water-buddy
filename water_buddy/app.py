@@ -19,15 +19,7 @@ AGE_GROUP_GOALS_ML = {
     "Older adults (65+)": 35000,
 }
 
-AGE_GROUP_OPTIONS = list(AGE_GROUP_GOALS_ML.keys())
-selected_age_group = st.selectbox("Select your age group", AGE_GROUP_OPTIONS)
-default_goal = AGE_GROUP_GOALS_ML.get(selected_age_group, "")
-custom_goal = st.number_input(
-    "Standard Water Goal (mL) — you can edit this",
-    value=default_goal,
-    step=100
-)
-st.write(f"💧 Your final daily water goal: **{custom_goal} mL**")
+
 # =========================
 # UTILITY FUNCTIONS
 # =========================
@@ -508,7 +500,15 @@ def settings_page():
         else:
             # Save both age_group and goal (in mL)
             firebase_patch(f"users/{username}", {"age_group": selected, "goal": mapped_goal})
-            st.success(f"✅ Age group set to '{selected}' and daily goal updated to {mapped_goal} ml.")
+            AGE_GROUP_OPTIONS = list(AGE_GROUP_GOALS_ML.keys())
+            selected_age_group = st.selectbox("Select your age group", AGE_GROUP_OPTIONS)
+            default_goal = AGE_GROUP_GOALS_ML.get(selected_age_group, "")
+            custom_goal = st.number_input(
+                "Standard Water Goal (mL) — you can edit this",
+                value=default_goal,
+                step=100
+            )
+            st.write(f"💧 Your final daily water goal: **{custom_goal} mL**")
         st.rerun()
 
     st.divider()
@@ -573,5 +573,6 @@ elif st.session_state["page"] == "tasks":
     tasks_page()
 elif st.session_state["page"] == "settings":
     settings_page()
+
 
 
