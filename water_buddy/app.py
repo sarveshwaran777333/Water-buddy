@@ -280,20 +280,20 @@ def home_page():
     stored_age_group = user_data.get("age_group")
     stored_goal = user_data.get("goal")
 
-    if stored_age_group and stored_age_group != "None / Prefer climate-based":
+    #if stored_age_group and stored_age_group != "None / Prefer climate-based":
         # Use stored goal (ensure exists in mapping)
-        mapped = AGE_GROUP_GOALS_ML.get(stored_age_group)
-        if mapped is not None:
-            goal = mapped
-        else:
+       # mapped = AGE_GROUP_GOALS_ML.get(stored_age_group)
+        #if mapped is not None:
+         #   goal = mapped
+        #else:
             # fallback if mapping missing
-            goal = stored_goal or climate_goal
-    else:
+         #   goal = stored_goal or climate_goal
+    #else:
         # No age group preference: use climate-based goal
-        goal = climate_goal
+     #   goal = climate_goal
         # update user's goal in firebase so UI shows consistent value
-        user_data["goal"] = goal
-        firebase_patch(f"users/{username}", {"goal": goal})
+      #  user_data["goal"] = goal
+       # firebase_patch(f"users/{username}", {"goal": goal})
 
     # If stored goal differs from computed goal (and age_group is set), keep stored goal
     user_data["goal"] = goal
@@ -486,7 +486,8 @@ def settings_page():
     st.subheader("🧭 Age Group (select to auto-set goal)")
 
     # preselect current age group if present
-    current_group = user_data.get("age_group", "None / Prefer climate-based")
+    #current_group = user_data.get("age_group", "None / Prefer climate-based")
+    current_group = user_data.get("age_group")
     selected = st.selectbox("Choose your age group:", AGE_GROUP_OPTIONS, index=AGE_GROUP_OPTIONS.index(current_group) if current_group in AGE_GROUP_OPTIONS else AGE_GROUP_OPTIONS.index("None / Prefer climate-based"))
 
     if st.button("Set Age Group & Update Goal"):
@@ -495,7 +496,7 @@ def settings_page():
         # If user chooses 'None / Prefer climate-based', we will compute time-of-day/climate goal on home page
         if mapped_goal is None:
             # Remove age_group preference and let climate decide
-            firebase_patch(f"users/{username}", {"age_group": "None / Prefer climate-based"})
+            firebase_patch(f"users/{username}", {"age_group"})
             st.success("✅ Age group preference cleared — app will use climate-based goal.")
         else:
             # Save both age_group and goal (in mL)
@@ -573,6 +574,7 @@ elif st.session_state["page"] == "tasks":
     tasks_page()
 elif st.session_state["page"] == "settings":
     settings_page()
+
 
 
 
