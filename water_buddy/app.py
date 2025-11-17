@@ -116,7 +116,7 @@ def login_page():
             if saved:
                 st.session_state.water_data = saved
 
-            st.experimental_rerun()
+            st.rerun()
         else:
             st.error("Incorrect password!")
 
@@ -246,3 +246,4 @@ def main():
 
 
 main()
+
