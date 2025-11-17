@@ -127,16 +127,6 @@ def login_page():
 def settings_page():
     st.title("⚙️ Settings")
 
-    # ----- Logout -----
-    if st.button("Logout"):
-        st.session_state.logged_in = False
-        st.session_state.page = "login"
-        return
-
-    # ----- Go to Home Page -----
-    if st.button("Go to Home Page"):
-        st.session_state.page = "home"
-        return
 
     st.subheader("👤 Age Settings")
 
@@ -195,7 +185,16 @@ def settings_page():
     st.subheader("🎨 Theme")
     theme = st.selectbox("Choose Theme", ["Light", "Dark", "Aqua"])
     st.session_state.theme = theme
+    # ----- Logout -----
+    if st.button("Logout"):
+        st.session_state.logged_in = False
+        st.session_state.page = "login"
+        return
 
+    # ----- Go to Home Page -----
+    if st.button("Go to Home Page"):
+        st.session_state.page = "home"
+        return
 
 
 # =========================
@@ -260,6 +259,7 @@ def main():
 
 
 main()
+
 
 
 
