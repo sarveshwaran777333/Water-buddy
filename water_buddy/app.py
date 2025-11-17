@@ -157,13 +157,12 @@ def login_page():
 def settings_page():
     apply_theme()
     st.title("⚙️ Settings")
-    ...
-
-
 
     st.subheader("👤 Age Settings")
 
-     # Age Range Dropdown
+    # ---------------------------------------
+    # AGE DROPDOWN
+    # ---------------------------------------
     age_ranges = {
         "Age between 6-12": "6-12",
         "Age between 13-18": "13-18",
@@ -171,60 +170,75 @@ def settings_page():
         "Age above 65+": "65+"
     }
 
+    # Pre-select current value if exists
+    current_age_label = next(
+        (label for label, val in age_ranges.items() if val == st.session_state.get("age_group")),
+        "Age between 6-12"
+    )
+
     selected_label = st.selectbox(
         "Select your age range",
-        list(age_ranges.keys())
+        list(age_ranges.keys()),
+        index=list(age_ranges.keys()).index(current_age_label)
     )
 
     selected_age_group = age_ranges[selected_label]
-    st.session_state.age_group = selected_age_group
-    
-    #st.session_state.age = age
     auto_goal = AGE_GROUP_GOALS_ML.get(selected_age_group, 2000)
 
     st.write(f"**Selected Age Group:** {selected_age_group}")
     st.write(f"**Recommended Daily Goal:** {auto_goal} ml")
 
-    # Manual Override
+    # ---------------------------------------
+    # MANUAL GOAL OVERRIDE
+    # ---------------------------------------
     user_goal = st.number_input(
         "Set your custom daily water goal (ml):",
         min_value=500, max_value=5000,
-        value=auto_goal, step=100
+        value=st.session_state.get("daily_goal", auto_goal),
+        step=100
     )
-    #st.session_state.age_group = get_age_group(age)
-    #auto_goal = AGE_GROUP_GOALS_ML.get(st.session_state.age_group, 2000)
 
-    #st.write(f"**Age Group:** {st.session_state.age_group}")
-    #st.write(f"**Recommended Goal:** {auto_goal} ml")
-
-    # Manual goal change
-    #user_goal = st.number_input(
-     #   "Set your custom daily water goal (ml):",
-      #  min_value=500, max_value=5000,
-       # value=auto_goal, step=100
-    #)
-
-    st.session_state.daily_goal = user_goal
-
-    # Save to Firebase
-    users = firebase_get("users") or {}
-    users[st.session_state.username]["goal"] = user_goal
-    users[st.session_state.username]["age_group"] = selected_age_group
-#users[st.session_state.username]["age"] = age
-    firebase_put("users", users)
-    st.success(f"Daily goal updated to **{user_goal} ml**")
-
-    # Theme selector
     st.subheader("🎨 Theme")
-    theme = st.selectbox("Choose Theme", ["Light", "Dark", "Aqua"])
-    st.session_state.theme = theme
-    # ----- Logout -----
+
+    theme_options = ["Light", "Dark", "Aqua"]
+    current_theme = st.session_state.get("theme", "Light")
+
+    theme = st.selectbox(
+        "Choose Theme",
+        theme_options,
+        index=theme_options.index(current_theme)
+    )
+
+    # ---------------------------------------
+    # SAVE BUTTON
+    # ---------------------------------------
+    if st.button("💾 Save Settings"):
+        st.session_state.age_group = selected_age_group
+        st.session_state.daily_goal = user_goal
+        st.session_state.theme = theme
+
+        # Apply theme instantly
+        apply_theme()
+
+        # SAVE TO FIREBASE
+        users = firebase_get("users") or {}
+        users[st.session_state.username]["goal"] = user_goal
+        users[st.session_state.username]["age_group"] = selected_age_group
+        firebase_put("users", users)
+
+        st.success("Settings saved successfully!")
+
+    # ---------------------------------------
+    # LOGOUT BUTTON
+    # ---------------------------------------
     if st.button("Logout"):
         st.session_state.logged_in = False
         st.session_state.page = "login"
         return
 
-    # ----- Go to Home Page -----
+    # ---------------------------------------
+    # GO HOME BUTTON
+    # ---------------------------------------
     if st.button("Go to Home Page"):
         st.session_state.page = "home"
         return
@@ -293,4 +307,5 @@ def main():
 
 
 main()
+
 
