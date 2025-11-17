@@ -170,7 +170,6 @@ def settings_page():
     users[st.session_state.username]["goal"] = user_goal
     users[st.session_state.username]["age"] = age
     firebase_put("users", users)
- - 
     st.success(f"Daily goal updated to **{user_goal} ml**")
 
     # Theme selector
@@ -239,5 +238,6 @@ def main():
 
 
 main()
+
 
 
