@@ -141,7 +141,7 @@ def settings_page():
     st.subheader("👤 Age Settings")
 
     # Age dropdown list (1–100)
-    age_list = list(range(1, 101))
+    age_list = list("Age between 6 - 12", "Age between 13 - 18")
 
     age = st.selectbox(
         "Select your age",
@@ -170,7 +170,7 @@ def settings_page():
     users[st.session_state.username]["goal"] = user_goal
     users[st.session_state.username]["age"] = age
     firebase_put("users", users)
-
+ - 
     st.success(f"Daily goal updated to **{user_goal} ml**")
 
     # Theme selector
@@ -239,4 +239,5 @@ def main():
 
 
 main()
+
 
