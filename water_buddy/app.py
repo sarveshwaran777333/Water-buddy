@@ -155,7 +155,6 @@ def login_page():
 # SETTINGS PAGE
 # =========================
 def settings_page():
-    def settings_page():
     apply_theme()
     st.title("⚙️ Settings")
     ...
@@ -294,3 +293,4 @@ def main():
 
 
 main()
+
