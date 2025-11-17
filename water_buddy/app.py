@@ -157,7 +157,7 @@ def settings_page():
     st.session_state.age_group = selected_age_group
     
     #st.session_state.age = age
-auto_goal = AGE_GROUP_GOALS_ML.get(selected_age_group, 2000)
+    auto_goal = AGE_GROUP_GOALS_ML.get(selected_age_group, 2000)
 
     st.write(f"**Selected Age Group:** {selected_age_group}")
     st.write(f"**Recommended Daily Goal:** {auto_goal} ml")
@@ -257,6 +257,7 @@ def main():
 
 
 main()
+
 
 
 
