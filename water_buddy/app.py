@@ -203,7 +203,10 @@ def settings_page():
 # =========================
 def home_page():
     st.title("🏠 Home")
-
+# --- Settings Button ---
+    if st.button("⚙️ Settings"):
+        st.session_state.page = "settings"
+        return
     st.write(f"**Daily Goal:** {st.session_state.daily_goal} ml")
 
     # Log water
@@ -257,6 +260,7 @@ def main():
 
 
 main()
+
 
 
 
