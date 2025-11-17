@@ -9,6 +9,34 @@ import hashlib
 FIREBASE_URL = "https://waterhydrator-9ecad-default-rtdb.asia-southeast1.firebasedatabase.app"
 
 
+def apply_theme():
+    theme = st.session_state.get("theme", "Light")
+
+    if theme == "Light":
+        st.markdown("""
+            <style>
+            body { background-color: #FFFFFF; color: #000000; }
+            .stButton>button { background-color: #ADD8E6; color: black; }
+            </style>
+        """, unsafe_allow_html=True)
+
+    elif theme == "Dark":
+        st.markdown("""
+            <style>
+            body { background-color: #1E1E1E; color: #FFFFFF; }
+            .stButton>button { background-color: #444444; color: white; }
+            </style>
+        """, unsafe_allow_html=True)
+
+    elif theme == "Aqua":
+        st.markdown("""
+            <style>
+            body { background-color: #CFF5FF; color: #004488; }
+            .stButton>button { background-color: #7F5FFF; color: white; }
+            </style>
+        """, unsafe_allow_html=True)
+
+
 # =========================
 # AGE GROUPS -> GOAL (mL)
 # =========================
@@ -58,6 +86,7 @@ def firebase_put(path, data):
 # SIGNUP PAGE
 # =========================
 def signup_page():
+    apply_theme()
     st.title("Create Account")
 
     username = st.text_input("Username")
@@ -89,6 +118,7 @@ def signup_page():
 # LOGIN PAGE
 # =========================
 def login_page():
+    apply_theme()
     st.title("Login")
 
     username = st.text_input("Username")
@@ -125,7 +155,11 @@ def login_page():
 # SETTINGS PAGE
 # =========================
 def settings_page():
+    def settings_page():
+    apply_theme()
     st.title("⚙️ Settings")
+    ...
+
 
 
     st.subheader("👤 Age Settings")
@@ -201,6 +235,7 @@ def settings_page():
 # HOME PAGE
 # =========================
 def home_page():
+    apply_theme()
     st.title("🏠 Home")
 
     st.write(f"**Daily Goal:** {st.session_state.daily_goal} ml")
@@ -259,13 +294,3 @@ def main():
 
 
 main()
-
-
-
-
-
-
-
-
-
-
