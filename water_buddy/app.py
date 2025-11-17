@@ -3,7 +3,7 @@ import streamlit as st
 import requests
 import hashlib
 
-FIREBASE_URL = "https://waterhydrator-9ecad-default-rtdb.asia-southeast1.firebasedatabase.app"  # replace this
+FIREBASE_URL = "https://waterhydrator-9ecad-default-rtdb.asia-southeast1.firebasedatabase.app/"
 
 # -----------------------------
 # Password Hashing
@@ -182,3 +182,4 @@ else:
         signup_page()
     else:
         login_page()
+
