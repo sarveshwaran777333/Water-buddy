@@ -1,249 +1,184 @@
+#FIREBASE_URL = "https://waterhydrator-9ecad-default-rtdb.asia-southeast1.firebasedatabase.app"   # ← replace this
 import streamlit as st
 import requests
 import hashlib
-import datetime
-import random
 
-# --------------------------
-# FIREBASE CONFIG
-# --------------------------
-FIREBASE_URL = "https://waterhydrator-9ecad-default-rtdb.asia-southeast1.firebasedatabase.app"   # ← replace this
+FIREBASE_URL = "https://waterhydrator-9ecad-default-rtdb.asia-southeast1.firebasedatabase.app"  # replace this
 
-
-# --------------------------
-# PASSWORD HASHING
-# --------------------------
-def hash_password(password: str):
+# -----------------------------
+# Password Hashing
+# -----------------------------
+def hash_password(password):
     return hashlib.sha256(password.encode()).hexdigest()
 
+# Firebase GET
+def firebase_get(path):
+    response = requests.get(FIREBASE_URL + path + ".json")
+    return response.json()
 
-# --------------------------
-# FIREBASE FUNCTIONS
-# --------------------------
-def firebase_signup(username, password_hash):
-    url = f"{FIREBASE_URL}/users/{username}.json"
-    data = {"password": password_hash}
-    requests.put(url, json=data)
-
-
-def firebase_user_exists(username):
-    url = f"{FIREBASE_URL}/users/{username}.json"
-    res = requests.get(url).json()
-    return res is not None
+# Firebase PUT
+def firebase_put(path, data):
+    response = requests.put(FIREBASE_URL + path + ".json", json=data)
+    return response.json()
 
 
-def firebase_check_password(username, password_hash):
-    url = f"{FIREBASE_URL}/users/{username}/password.json"
-    res = requests.get(url).json()
-    return res == password_hash
+# =============================
+# 🎨 THEME SETTINGS
+# =============================
+def apply_theme():
+    theme = st.session_state.get("theme", "light")
+
+    if theme == "dark":
+        st.markdown(
+            """
+            <style>
+            body { background-color: #0d1117; color: white; }
+            .stButton>button { background-color: #222; color: white; }
+            .stTextInput>div>div>input { background-color: #111; color: white; }
+            </style>
+            """,
+            unsafe_allow_html=True
+        )
+    else:
+        st.markdown(
+            """
+            <style>
+            body { background-color: #ffffff; color: black; }
+            .stButton>button { background-color: #e6e6e6; color: black; }
+            </style>
+            """,
+            unsafe_allow_html=True
+        )
 
 
-def save_user_data(username, data):
-    url = f"{FIREBASE_URL}/data/{username}.json"
-    requests.put(url, json=data)
+# =============================
+# 🏠 HOME PAGE
+# =============================
+def home_page():
+    apply_theme()
+    st.title("🏠 Home Page")
+    st.write("This is the home page.")
+
+    if st.button("Go to Settings"):
+        st.session_state["current_page"] = "settings"
+        st.rerun()
 
 
-def load_user_data(username):
-    url = f"{FIREBASE_URL}/data/{username}.json"
-    res = requests.get(url).json()
-    return res
+# =============================
+# ⚙ SETTINGS PAGE
+# =============================
+def settings_page():
+    apply_theme()
+    st.title("⚙ Settings")
+
+    st.subheader("🔵 Theme Selection")
+    theme_choice = st.radio("Choose Theme", ["light", "dark"], index=0 if st.session_state["theme"] == "light" else 1)
+
+    if theme_choice != st.session_state["theme"]:
+        st.session_state["theme"] = theme_choice
+        st.rerun()
+
+    st.subheader("💧 Water Goal (mL)")
+    current_goal = st.session_state.get("water_goal", 2000)
+
+    new_goal = st.number_input("Set Water Goal (mL)", min_value=500, max_value=6000, value=current_goal)
+
+    if st.button("Save Goal"):
+        st.session_state["water_goal"] = new_goal
+        st.success("Water goal updated!")
+
+    st.write("---")
+
+    if st.button("Go to Home Page"):
+        st.session_state["current_page"] = "home"
+        st.rerun()
+
+    if st.button("Logout"):
+        st.session_state["logged_in"] = False
+        st.session_state["user"] = None
+        st.session_state["current_page"] = "login"
+        st.rerun()
 
 
-# --------------------------
-# WATERBUDDY DEFAULT SETTINGS
-# --------------------------
-AGE_GROUP_GOALS = {
-    "6-12": 1600,
-    "13-18": 2000,
-    "19-50": 2500,
-    "51-64": 2400,
-    "65+": 2200
-}
-
-QUICK_LOG = 250
-CUP_ML = 240
-
-TIPS = [
-    "Sip water every 30 minutes.",
-    "Start your day with a glass of water!",
-    "Carry a bottle everywhere.",
-    "Water improves mood & focus.",
-    "Staying hydrated keeps you energetic."
-]
-
-
-# --------------------------
-# INITIALIZE SESSION
-# --------------------------
-def init_user_state():
-    if "logged_in" not in st.session_state:
-        st.session_state.logged_in = False
-
-    if "username" not in st.session_state:
-        st.session_state.username = ""
-
-    if "water_data" not in st.session_state:
-        st.session_state.water_data = {
-            "date": str(datetime.date.today()),
-            "age_group": "19-50",
-            "daily_goal": 2500,
-            "intake": 0,
-            "logs": [],
-        }
-
-
-# --------------------------
-# LOGIN PAGE
-# --------------------------
+# =============================
+# 🔐 LOGIN PAGE
+# =============================
 def login_page():
-    st.title("🔐 Login to WaterBuddy")
+    apply_theme()
+    st.title("🔐 Login")
 
     username = st.text_input("Username")
     password = st.text_input("Password", type="password")
 
     if st.button("Login"):
-        if not firebase_user_exists(username):
+        users = firebase_get("users")
+
+        if users and username in users:
+            hashed = hash_password(password)
+            if users[username]["password"] == hashed:
+
+                st.session_state["logged_in"] = True
+                st.session_state["user"] = username
+                st.session_state["current_page"] = "settings"  # ➜ OPEN SETTINGS DIRECTLY
+                st.success("Login successful!")
+                st.rerun()
+            else:
+                st.error("Incorrect password!")
+        else:
             st.error("User does not exist!")
-            return
 
-        if firebase_check_password(username, hash_password(password)):
-            st.success("Login successful!")
-            st.session_state.logged_in = True
-            st.session_state.username = username
-
-            # load personal saved data
-            saved = load_user_data(username)
-            if saved:
-                st.session_state.water_data = saved
-
-            st.rerun()
-        else:
-            st.error("Incorrect password!")
+    if st.button("Go to Signup"):
+        st.session_state["current_page"] = "signup"
+        st.rerun()
 
 
-# --------------------------
-# SIGNUP PAGE
-# --------------------------
+# =============================
+# 📝 SIGNUP PAGE
+# =============================
 def signup_page():
-    st.title("🆕 Create WaterBuddy Account")
+    apply_theme()
+    st.title("📝 Signup")
 
-    username = st.text_input("Choose Username")
+    username = st.text_input("Create Username")
     password = st.text_input("Create Password", type="password")
-    cpassword = st.text_input("Confirm Password", type="password")
 
-    if st.button("Sign Up"):
-        if firebase_user_exists(username):
-            st.error("Username already taken!")
-            return
+    if st.button("Signup"):
+        users = firebase_get("users") or {}
 
-        if password != cpassword:
-            st.error("Passwords do not match.")
-            return
-
-        firebase_signup(username, hash_password(password))
-        st.success("Account created! Please login.")
-
-
-# --------------------------
-# WATERBUDDY MAIN APP
-# --------------------------
-def waterbuddy_app():
-    st.title("💧 WaterBuddy – Your Hydration Partner")
-
-    data = st.session_state.water_data
-
-    # Reset day if new date has arrived
-    today = str(datetime.date.today())
-    if data["date"] != today:
-        data["date"] = today
-        data["intake"] = 0
-        data["logs"] = []
-
-    # --- Age group selector ---
-    age_group = st.selectbox("Select your age group", AGE_GROUP_GOALS.keys())
-    data["age_group"] = age_group
-    suggested_goal = AGE_GROUP_GOALS[age_group]
-
-    data["daily_goal"] = st.number_input(
-        "Daily Goal (ml)", 
-        min_value=500, 
-        max_value=7000, 
-        value=suggested_goal
-    )
-
-    st.write(f"Suggested: **{suggested_goal} ml**")
-
-    st.markdown("---")
-
-    # --- Quick Logging ---
-    st.subheader("Log your water")
-    if st.button(f"+{QUICK_LOG} ml"):
-        data["intake"] += QUICK_LOG
-        data["logs"].append(f"+{QUICK_LOG} ml @ {datetime.datetime.now().strftime('%H:%M')}")
-
-    custom = st.number_input("Enter custom amount (ml)", min_value=50, max_value=3000, value=250)
-    if st.button("Add custom amount"):
-        data["intake"] += custom
-        data["logs"].append(f"+{custom} ml @ {datetime.datetime.now().strftime('%H:%M')}")
-
-    # --- Progress ---
-    progress = data["intake"] / data["daily_goal"]
-    st.progress(progress)
-
-    st.metric("Today's Intake", f"{data['intake']} ml")
-    st.metric("Remaining", f"{data['daily_goal'] - data['intake']} ml")
-
-    # --- Motivational Message ---
-    if progress >= 1:
-        st.success("🎉 Goal completed! Amazing!")
-    elif progress >= 0.5:
-        st.info("👍 Good progress! Keep going!")
-    elif progress > 0:
-        st.warning("🙂 Nice start! Drink more!")
-
-    st.markdown("---")
-
-    # Logs
-    st.subheader("Today's Logs")
-    if data["logs"]:
-        for log in reversed(data["logs"]):
-            st.write(log)
-    else:
-        st.info("No logs yet!")
-
-    # Reset
-    if st.button("Reset Today"):
-        data["intake"] = 0
-        data["logs"] = []
-        st.success("Reset successful")
-
-    # Random Tip
-    st.info("💡 Tip: " + random.choice(TIPS))
-
-    # Save data to Firebase every time
-    save_user_data(st.session_state.username, data)
-
-
-# --------------------------
-# MAIN APP FLOW
-# --------------------------
-def main():
-    init_user_state()
-
-    menu = st.sidebar.radio("Navigation", ["Login", "Signup", "WaterBuddy"])
-
-    if menu == "Login":
-        login_page()
-
-    elif menu == "Signup":
-        signup_page()
-
-    elif menu == "WaterBuddy":
-        if not st.session_state.logged_in:
-            st.warning("Please login first!")
+        if username in users:
+            st.error("Username already exists!")
         else:
-            waterbuddy_app()
+            hashed = hash_password(password)
+            firebase_put(f"users/{username}", {"password": hashed})
+            st.success("Account created! Redirecting to Login...")
+            st.session_state["current_page"] = "login"
+            st.rerun()
+
+    if st.button("Back to Login"):
+        st.session_state["current_page"] = "login"
+        st.rerun()
 
 
-main()
+# =============================
+# APP FLOW CONTROL
+# =============================
+if "logged_in" not in st.session_state:
+    st.session_state["logged_in"] = False
 
+if "current_page" not in st.session_state:
+    st.session_state["current_page"] = "login"
+
+if "theme" not in st.session_state:
+    st.session_state["theme"] = "light"
+
+# ---------- PAGE LOGIC ----------
+if st.session_state["logged_in"]:
+    if st.session_state["current_page"] == "settings":
+        settings_page()
+    elif st.session_state["current_page"] == "home":
+        home_page()
+else:
+    if st.session_state["current_page"] == "signup":
+        signup_page()
+    else:
+        login_page()
