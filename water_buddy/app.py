@@ -140,35 +140,54 @@ def settings_page():
 
     st.subheader("👤 Age Settings")
 
-    # Age dropdown list (1–100)
-    age_list = list("Age between 6 - 12", "Age between 13 - 18")
+     # Age Range Dropdown
+    age_ranges = {
+        "Age between 6-12": "6-12",
+        "Age between 13-18": "13-18",
+        "Age between 19-50": "19-50",
+        "Age above 65+": "65+"
+    }
 
-    age = st.selectbox(
-        "Select your age",
-        age_list,
-        index=st.session_state.age - 1 if "age" in st.session_state else 0
+    selected_label = st.selectbox(
+        "Select your age range",
+        list(age_ranges.keys())
     )
-    st.session_state.age = age
 
-    st.session_state.age_group = get_age_group(age)
-    auto_goal = AGE_GROUP_GOALS_ML.get(st.session_state.age_group, 2000)
+     selected_age_group = age_ranges[selected_label]
+    st.session_state.age_group = selected_age_group
+    
+    #st.session_state.age = age
+auto_goal = AGE_GROUP_GOALS_ML.get(selected_age_group, 2000)
 
-    st.write(f"**Age Group:** {st.session_state.age_group}")
-    st.write(f"**Recommended Goal:** {auto_goal} ml")
+st.write(f"**Selected Age Group:** {selected_age_group}")
+    st.write(f"**Recommended Daily Goal:** {auto_goal} ml")
 
-    # Manual goal change
+    # Manual Override
     user_goal = st.number_input(
         "Set your custom daily water goal (ml):",
         min_value=500, max_value=5000,
         value=auto_goal, step=100
     )
+    #st.session_state.age_group = get_age_group(age)
+    #auto_goal = AGE_GROUP_GOALS_ML.get(st.session_state.age_group, 2000)
+
+    #st.write(f"**Age Group:** {st.session_state.age_group}")
+    #st.write(f"**Recommended Goal:** {auto_goal} ml")
+
+    # Manual goal change
+    #user_goal = st.number_input(
+     #   "Set your custom daily water goal (ml):",
+      #  min_value=500, max_value=5000,
+       # value=auto_goal, step=100
+    #)
 
     st.session_state.daily_goal = user_goal
 
     # Save to Firebase
     users = firebase_get("users") or {}
     users[st.session_state.username]["goal"] = user_goal
-    users[st.session_state.username]["age"] = age
+    users[st.session_state.username]["age_group"] = selected_age_group
+#users[st.session_state.username]["age"] = age
     firebase_put("users", users)
     st.success(f"Daily goal updated to **{user_goal} ml**")
 
@@ -238,6 +257,7 @@ def main():
 
 
 main()
+
 
 
 
