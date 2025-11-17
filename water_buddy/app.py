@@ -153,7 +153,7 @@ def settings_page():
         list(age_ranges.keys())
     )
 
-     selected_age_group = age_ranges[selected_label]
+    selected_age_group = age_ranges[selected_label]
     st.session_state.age_group = selected_age_group
     
     #st.session_state.age = age
@@ -257,6 +257,7 @@ def main():
 
 
 main()
+
 
 
 
