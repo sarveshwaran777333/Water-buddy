@@ -140,8 +140,14 @@ def settings_page():
 
     st.subheader("👤 Age Settings")
 
-    # User enters age
-    age = st.number_input("Enter your age", min_value=1, max_value=120, step=1)
+    # Age dropdown list (1–100)
+    age_list = list(range(1, 101))
+
+    age = st.selectbox(
+        "Select your age",
+        age_list,
+        index=st.session_state.age - 1 if "age" in st.session_state else 0
+    )
     st.session_state.age = age
 
     st.session_state.age_group = get_age_group(age)
@@ -171,6 +177,7 @@ def settings_page():
     st.subheader("🎨 Theme")
     theme = st.selectbox("Choose Theme", ["Light", "Dark", "Aqua"])
     st.session_state.theme = theme
+
 
 
 # =========================
@@ -232,3 +239,4 @@ def main():
 
 
 main()
+
