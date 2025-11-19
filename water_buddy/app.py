@@ -5,6 +5,7 @@ WaterBuddy - Streamlit app using Firebase Realtime DB REST API (no firebase_admi
 - Left navigation pane (buttons) and right content pane
 - Age-based goals, +250ml quick log, custom log, reset, daily storage
 - Theme support (Light/Aqua/Dark) with readable nav labels
+- Lottie animated progress bar (assets/progress_bar.json) shown on Home (always visible)
 """
 
 import streamlit as st
@@ -13,6 +14,13 @@ import json
 from datetime import date
 import random
 import time
+import os
+
+# Lottie support
+try:
+    from streamlit_lottie import st_lottie
+except Exception:
+    st_lottie = None  # graceful fallback if streamlit-lottie not installed
 
 # -----------------------
 # Configuration
@@ -228,6 +236,28 @@ def apply_theme(theme_name: str):
         """, unsafe_allow_html=True)
 
 # -----------------------
+# Lottie helper + load animation (safe)
+# -----------------------
+def load_lottie(path: str):
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception:
+        return None
+
+# Attempt to load Lottie progress animation (file: assets/progress_bar.json)
+LOTTIE_PROGRESS = None
+if st_lottie is not None:
+    assets_path = os.path.join("assets", "progress_bar.json")
+    if os.path.exists(assets_path):
+        LOTTIE_PROGRESS = load_lottie(assets_path)
+    else:
+        # try alternative filename
+        alt = os.path.join("assets", "progress.json")
+        if os.path.exists(alt):
+            LOTTIE_PROGRESS = load_lottie(alt)
+
+# -----------------------
 # Streamlit app start
 # -----------------------
 st.set_page_config(page_title="WaterBuddy", layout="wide")
@@ -379,6 +409,27 @@ def dashboard_ui():
 
             svg = generate_bottle_svg(percent)
             st.components.v1.html(svg, height=360, scrolling=False)
+
+            # -----------------------
+            # Lottie progress bar (always visible)
+            # -----------------------
+            if st_lottie is not None and LOTTIE_PROGRESS is not None:
+                try:
+                    # if animation length is 150 frames (as delivered), scale end_frame by percent
+                    total_frames = 150
+                    end_frame = int(total_frames * (percent / 100.0))
+                    if end_frame < 1:
+                        end_frame = 1
+                    st_lottie(LOTTIE_PROGRESS, loop=False, start_frame=0, end_frame=end_frame, height=120)
+                except Exception:
+                    # fallback: show the animation normally
+                    try:
+                        st_lottie(LOTTIE_PROGRESS, loop=False, height=120)
+                    except Exception:
+                        pass
+            else:
+                # fallback: show numeric progress if lottie not available
+                st.write(f"Progress: {percent:.0f}%")
 
             # milestone messages
             if percent >= 100:
