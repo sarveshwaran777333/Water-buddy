@@ -1,25 +1,8 @@
-# app.py
-"""
-WaterBuddy - Robust single-file Streamlit app using Firebase Realtime DB (REST).
-Features:
- - Username + password signup/login (no email)
- - Left navigation pane and right content pane after login
- - Age-based suggested goal + manual override
- - +250 ml quick log, custom log, reset today
- - Stores per-day intake under: users/<uid>/days/<YYYY-MM-DD>/intake
- - Progress bar, SVG bottle, unit converter, tips
- - Defensive network/error handling to avoid crashes
-Notes:
- - This example stores passwords in plaintext for simplicity (not recommended for production).
- - Make sure your Firebase Realtime DB URL is correct and rules allow the operations used.
-"""
-
 import streamlit as st
 import requests
 import json
 from datetime import date
 import random
-import math
 import time
 
 # -----------------------
@@ -53,7 +36,6 @@ REQUEST_TIMEOUT = 8  # seconds
 # Firebase REST helpers (defensive)
 # -----------------------
 def firebase_url(path: str) -> str:
-    # Build URL for Firebase Realtime DB path
     path = path.strip("/")
     return f"{FIREBASE_URL}/{path}.json"
 
@@ -62,9 +44,11 @@ def firebase_get(path: str):
     try:
         r = requests.get(url, timeout=REQUEST_TIMEOUT)
         if r.status_code == 200:
-            return r.json()
+            try:
+                return r.json()
+            except ValueError:
+                return None
         else:
-            # non-200: return None
             return None
     except requests.RequestException:
         return None
@@ -90,7 +74,10 @@ def firebase_post(path: str, value):
     try:
         r = requests.post(url, data=json.dumps(value), timeout=REQUEST_TIMEOUT)
         if r.status_code in (200, 201):
-            return r.json()  # expected {"name": "<new-key>"}
+            try:
+                return r.json()
+            except ValueError:
+                return None
         return None
     except requests.RequestException:
         return None
@@ -110,7 +97,6 @@ def find_user_by_username(username: str):
 
 def create_user(username: str, password: str):
     """Create user if username not taken. Return uid or None."""
-    # Validate locally
     if not username or not password:
         return None
     uid, _ = find_user_by_username(username)
@@ -118,7 +104,7 @@ def create_user(username: str, password: str):
         return None  # already exists
     payload = {
         "username": username,
-        "password": password,  # plaintext - for demo only
+        "password": password,  # plaintext for demo only
         "created_at": DATE_STR,
         "profile": {
             "age_group": "19-50",
@@ -147,10 +133,9 @@ def get_today_intake(uid: str):
     val = firebase_get(path)
     if isinstance(val, (int, float)):
         return int(val)
-    # If no value or unexpected type, try to read user root fallback:
+    # fallback to legacy root value
     user_rec = firebase_get(f"{USERS_NODE}/{uid}")
     if isinstance(user_rec, dict):
-        # support legacy field at root "todays_intake_ml"
         legacy = user_rec.get("todays_intake_ml")
         if isinstance(legacy, (int, float)):
             return int(legacy)
@@ -174,7 +159,6 @@ def get_user_profile(uid: str):
         return {"age_group": "19-50", "user_goal_ml": AGE_GOALS_ML["19-50"]}
     profile = firebase_get(f"{USERS_NODE}/{uid}/profile")
     if isinstance(profile, dict):
-        # ensure fields exist
         return {
             "age_group": profile.get("age_group", "19-50"),
             "user_goal_ml": int(profile.get("user_goal_ml", AGE_GOALS_ML["19-50"]))
@@ -202,16 +186,17 @@ def generate_bottle_svg(percent: float, width:int=140, height:int=360) -> str:
     fill_h = (pct / 100.0) * inner_h
     empty_h = inner_h - fill_h
     svg = f"""
-    <svg width="{width}" height="{height}" viewBox="0 0 {width} {height}" xmlns="http://www.w3.org/2000/svg">
-      <rect x="12" y="12" rx="20" ry="20" width="{width-24}" height="{height-24}" fill="none" stroke="#1f77b4" stroke-width="4"/>
-      <rect x="24" y="36" width="{inner_w}" height="{inner_h}" rx="12" ry="12" fill="#e9f6fb"/>
-      <rect x="24" y="{36 + empty_h}" width="{inner_w}" height="{fill_h}" rx="12" ry="12" fill="#2ca6e0"/>
-      <text x="{width/2}" y="{height-10}" font-size="14" text-anchor="middle" fill="#023047">{pct:.0f}%</text>
-    </svg>
-    """
+<svg width="{width}" height="{height}" viewBox="0 0 {width} {height}" xmlns="http://www.w3.org/2000/svg">
+  <rect x="12" y="12" rx="20" ry="20" width="{width-24}" height="{height-24}" fill="none" stroke="#1f77b4" stroke-width="4"/>
+  <rect x="24" y="36" width="{inner_w}" height="{inner_h}" rx="12" ry="12" fill="#e9f6fb"/>
+  <rect x="24" y="{36 + empty_h}" width="{inner_w}" height="{fill_h}" rx="12" ry="12" fill="#2ca6e0"/>
+  <text x="{width/2}" y="{height-10}" font-size="14" text-anchor="middle" fill="#023047">{pct:.0f}%</text>
+</svg>
+"""
     return svg
 
 # -----------------------
+
 # Streamlit app start
 # -----------------------
 st.set_page_config(page_title="WaterBuddy", layout="wide")
@@ -226,6 +211,37 @@ if "page" not in st.session_state:
     st.session_state.page = "login"
 if "tip" not in st.session_state:
     st.session_state.tip = random.choice(TIPS)
+if "theme" not in st.session_state:
+    st.session_state.theme = "Light"
+
+# -----------------------
+# Theme applier (global)
+# -----------------------
+def apply_theme(theme_name: str):
+    if theme_name == "Dark":
+        st.markdown("""
+            <style>
+            .stApp { background-color: #0f1720; color: #e6eef6; }
+            .stButton>button { background-color: #444444; color: #ffffff; border-radius:6px; }
+            .stTextInput>div>input { background-color: #1a1a1a; color: #eee; }
+            </style>
+        """, unsafe_allow_html=True)
+    elif theme_name == "Aqua":
+        st.markdown("""
+            <style>
+            .stApp { background-color: #e8fbff; color: #003f5c; }
+            .stButton>button { background-color: #0077b6; color: #fff; border-radius:6px; }
+            </style>
+        """, unsafe_allow_html=True)
+    else:
+        # Light
+        st.markdown("""
+            <style>
+            .stApp { background-color: #ffffff; color: #000000; }
+            .stButton>button { background-color: #ADD8E6; color: #000000; border-radius:6px; }
+            .stTextInput>div>input { background-color: #fff; color: #000; }
+            </style>
+        """, unsafe_allow_html=True)
 
 # -----------------------
 # Login UI
@@ -244,10 +260,12 @@ def login_ui():
             st.session_state.uid = uid
             st.success("Login successful.")
             time.sleep(0.6)
+            # ensure theme persisted from user profile if available
+            profile = get_user_profile(uid)
+            st.session_state.theme = "Light"  # default; profile theme support can be added
             st.rerun()
         else:
             st.error("Invalid username or password.")
-    st.write("")
     if st.button("Create new account"):
         st.session_state.page = "signup"
         st.rerun()
@@ -286,6 +304,14 @@ def dashboard_ui():
 
     with left_col:
         st.subheader("Menu")
+
+        # Theme selector in left pane
+        theme_choice = st.selectbox("Theme", ["Light", "Dark", "Aqua"], index=["Light","Dark","Aqua"].index(st.session_state.get("theme","Light")))
+        if theme_choice != st.session_state.get("theme"):
+            st.session_state.theme = theme_choice
+            apply_theme(theme_choice)
+            st.experimental_rerun()
+
         nav = st.radio("Navigate", ["Home", "Log Water", "Settings", "Logout"])
         st.markdown("---")
         st.write("Tip of the day")
@@ -293,7 +319,10 @@ def dashboard_ui():
         if st.button("New tip"):
             st.session_state.tip = random.choice(TIPS)
             st.rerun()
+
     with right_col:
+        apply_theme(st.session_state.get("theme", "Light"))
+
         if nav == "Home":
             st.header("Today's Summary")
             st.write(f"User: **{get_username_by_uid(uid)}**")
@@ -311,9 +340,9 @@ def dashboard_ui():
                 st.write(f"**{user_goal} ml**")
 
             remaining = max(user_goal - intake, 0)
-            percent = min((intake / user_goal) * 100 if user_goal>0 else 0, 100)
+            percent = min((intake / user_goal) * 100 if user_goal > 0 else 0, 100)
 
-            st.metric("Total intake (ml)", f"{intake} ml", delta=f"{remaining} ml to goal" if remaining>0 else "Goal reached!")
+            st.metric("Total intake (ml)", f"{intake} ml", delta=f"{remaining} ml to goal" if remaining > 0 else "Goal reached!")
             st.progress(percent / 100)
 
             svg = generate_bottle_svg(percent)
@@ -382,10 +411,12 @@ def dashboard_ui():
 
         elif nav == "Settings":
             st.header("Settings")
-            age_choice = st.selectbox("Select age group", list(AGE_GOALS_ML.keys()), index=list(AGE_GOALS_ML.keys()).index(profile.get("age_group","19-50")))
+            age_choice = st.selectbox("Select age group", list(AGE_GOALS_ML.keys()),
+                                      index=list(AGE_GOALS_ML.keys()).index(profile.get("age_group","19-50")))
             suggested = AGE_GOALS_ML[age_choice]
             st.write(f"Suggested goal: {suggested} ml")
-            user_goal_val = st.number_input("Your daily goal (ml)", min_value=500, max_value=10000, value=int(profile.get("user_goal_ml", suggested)), step=50)
+            user_goal_val = st.number_input("Your daily goal (ml)", min_value=500, max_value=10000,
+                                           value=int(profile.get("user_goal_ml", suggested)), step=50)
             if st.button("Save"):
                 ok = update_user_profile(uid, {"age_group": age_choice, "user_goal_ml": int(user_goal_val)})
                 if ok:
@@ -409,10 +440,3 @@ if not st.session_state.logged_in:
         login_ui()
 else:
     dashboard_ui()
-
-
-
-
-
-
-
