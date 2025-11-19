@@ -1,243 +1,158 @@
 import streamlit as st
-import random
-import datetime
-import firebase_admin
-from firebase_admin import credentials, firestore
+import requests
+import json
 
-# -------------------------------------------------------
-# INITIALIZE FIREBASE
-# -------------------------------------------------------
-if not firebase_admin._apps:
-    cred = credentials.Certificate("firebase_key.json")
-    firebase_admin.initialize_app(cred)
+# ----------------------------------------------------------------
+# FIREBASE CONFIG
+# ----------------------------------------------------------------
+FIREBASE_URL = "https://waterhydrator-9ecad-default-rtdb.asia-southeast1.firebasedatabase.app"
+USERS_NODE = "users"
 
-db = firestore.client()
+# ----------------------------------------------------------------
+# FIREBASE FUNCTIONS
+# ----------------------------------------------------------------
+def signup_user(email, password):
+    payload = {
+        "email": email,
+        "password": password
+    }
+    url = f"{FIREBASE_URL}/{USERS_NODE}.json"
+    response = requests.post(url, data=json.dumps(payload))
+    return response.status_code == 200
 
-# -------------------------------------------------------
-# SESSION VARIABLES
-# -------------------------------------------------------
+def login_user(email, password):
+    url = f"{FIREBASE_URL}/{USERS_NODE}.json"
+    response = requests.get(url)
+
+    if response.status_code != 200:
+        return False, None
+
+    data = response.json()
+
+    if data:
+        for user_id, user_data in data.items():
+            if user_data.get("email") == email and user_data.get("password") == password:
+                return True, user_id
+    return False, None
+
+def save_user_data(user_id, key, value):
+    url = f"{FIREBASE_URL}/{USERS_NODE}/{user_id}/{key}.json"
+    requests.put(url, data=json.dumps(value))
+
+def get_user_data(user_id, key):
+    url = f"{FIREBASE_URL}/{USERS_NODE}/{user_id}/{key}.json"
+    response = requests.get(url)
+    if response.status_code == 200:
+        return response.json()
+    return None
+
+# ----------------------------------------------------------------
+# APP UI
+# ----------------------------------------------------------------
+st.set_page_config(page_title="Water Hydrator", layout="wide")
+
+# Track login status
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
+if "user_id" not in st.session_state:
+    st.session_state.user_id = None
 
-if "username" not in st.session_state:
-    st.session_state.username = None
-
-if "current_page" not in st.session_state:
-    st.session_state.current_page = "Home"
-
-# -------------------------------------------------------
-# FIREBASE FUNCTIONS
-# -------------------------------------------------------
-def firebase_create_user(username, password):
-    ref = db.collection("users").document(username)
-    if ref.get().exists:
-        return False
-    ref.set({"password": password})
-    return True
-
-def firebase_validate_user(username, password):
-    ref = db.collection("users").document(username).get()
-    if ref.exists and ref.to_dict().get("password") == password:
-        return True
-    return False
-
-def firebase_log_water(username, ml):
-    today = datetime.date.today().isoformat()
-    ref = db.collection("users").document(username).collection("days").document(today)
-
-    doc = ref.get()
-    if doc.exists:
-        current = doc.to_dict().get("intake", 0)
-        ref.set({"intake": current + ml}, merge=True)
-    else:
-        ref.set({"intake": ml})
-
-def firebase_reset_day(username):
-    today = datetime.date.today().isoformat()
-    ref = db.collection("users").document(username).collection("days").document(today)
-    ref.set({"intake": 0})
-
-def firebase_get_today_intake(username):
-    today = datetime.date.today().isoformat()
-    ref = db.collection("users").document(username).collection("days").document(today).get()
-    if ref.exists:
-        return ref.to_dict().get("intake", 0)
-    return 0
-
-# -------------------------------------------------------
+# ----------------------------------------------------------------
 # LOGIN PAGE
-# -------------------------------------------------------
-def page_login():
-    st.title("WaterBuddy – Login")
+# ----------------------------------------------------------------
+def login_page():
+    st.title("Login")
 
-    user = st.text_input("Username")
-    pwd = st.text_input("Password", type="password")
+    email = st.text_input("Email")
+    password = st.text_input("Password", type="password")
 
     if st.button("Login"):
-        if firebase_validate_user(user, pwd):
+        success, user_id = login_user(email, password)
+        if success:
             st.session_state.logged_in = True
-            st.session_state.username = user
+            st.session_state.user_id = user_id
+            st.success("Login Successful")
         else:
-            st.error("Invalid credentials.")
+            st.error("Invalid email or password")
 
-    if st.button("Create New Account"):
-        st.session_state.current_page = "Signup"
+    st.write("Not registered?")
+    if st.button("Go to Signup"):
+        st.session_state.page = "signup"
 
-# -------------------------------------------------------
+
+# ----------------------------------------------------------------
 # SIGNUP PAGE
-# -------------------------------------------------------
-def page_signup():
-    st.title("Create a WaterBuddy Account")
+# ----------------------------------------------------------------
+def signup_page():
+    st.title("Sign Up")
 
-    new_user = st.text_input("Choose Username")
-    new_pass = st.text_input("Create Password", type="password")
+    email = st.text_input("Email")
+    password = st.text_input("Password", type="password")
 
     if st.button("Create Account"):
-        if firebase_create_user(new_user, new_pass):
-            st.success("Account created. Please log in.")
-            st.session_state.current_page = "Login"
+        if signup_user(email, password):
+            st.success("Account created successfully.")
+            st.session_state.page = "login"
         else:
-            st.error("Username already exists.")
+            st.error("Signup failed. Try again.")
 
     if st.button("Back to Login"):
-        st.session_state.current_page = "Login"
+        st.session_state.page = "login"
 
-# -------------------------------------------------------
-# LEFT NAVIGATION PANE
-# -------------------------------------------------------
-def nav_sidebar():
-    with st.sidebar:
-        st.title("WaterBuddy")
-        choices = ["Home", "Log Water", "Progress", "Profile", "Logout"]
-        selection = st.radio("Navigate", choices)
 
-        st.session_state.current_page = selection
+# ----------------------------------------------------------------
+# MAIN DASHBOARD
+# ----------------------------------------------------------------
+def dashboard():
+    st.title("Water Hydrator Dashboard")
 
-# -------------------------------------------------------
-# MAIN: HOME PAGE
-# -------------------------------------------------------
-def page_home():
-    st.header(f"Hello, {st.session_state.username}!")
-    st.write("Welcome to your personal hydration tracker.")
-    st.write("Use the left panel to navigate.")
+    # LEFT NAVIGATION PANEL
+    menu = st.sidebar.radio("Navigation", ["Home", "Daily Intake", "Statistics", "Logout"])
 
-# -------------------------------------------------------
-# LOG WATER PAGE
-# -------------------------------------------------------
-def page_log():
-    st.header("Water Intake Logging")
+    # HOME PAGE
+    if menu == "Home":
+        st.subheader("Welcome to your Dashboard")
 
-    # Age-based recommended goals
-    standard_goals = {
-        "6–12": 1600,
-        "13–18": 1800,
-        "19–50": 2500,
-        "65+": 2000,
-    }
+        liters_today = get_user_data(st.session_state.user_id, "liters_today")
+        if liters_today is None:
+            liters_today = 0
 
-    st.subheader("Select Age Group")
-    age_group = st.selectbox("Age Range", standard_goals.keys())
-    default_goal = standard_goals[age_group]
+        st.write(f"Current Water Intake Today: {liters_today} liters")
 
-    st.write(f"Suggested Goal: {default_goal} ml")
+    # DAILY INTAKE PAGE
+    elif menu == "Daily Intake":
+        st.subheader("Log Water Intake")
 
-    daily_goal = st.number_input(
-        "Adjust Daily Goal (optional)",
-        min_value=500,
-        max_value=5000,
-        value=default_goal,
-        step=50
-    )
+        liters = st.number_input("Enter Liters", min_value=0.0, step=0.1)
 
-    st.subheader("Add Water Intake")
-    col1, col2 = st.columns(2)
+        if st.button("Save"):
+            save_user_data(st.session_state.user_id, "liters_today", liters)
+            st.success("Saved Successfully")
 
-    with col1:
-        if st.button("+250 ml"):
-            firebase_log_water(st.session_state.username, 250)
+    # STATISTICS PAGE
+    elif menu == "Statistics":
+        st.subheader("Your Stats")
 
-    with col2:
-        custom = st.number_input("Enter custom amount (ml):", 0, 2000, 0, 50)
-        if st.button("Add"):
-            firebase_log_water(st.session_state.username, custom)
+        liters_today = get_user_data(st.session_state.user_id, "liters_today") or 0
+        st.write(f"Water consumed today: {liters_today} liters")
 
-    if st.button("Reset Today"):
-        firebase_reset_day(st.session_state.username)
+    # LOGOUT
+    elif menu == "Logout":
+        st.session_state.logged_in = False
+        st.session_state.user_id = None
+        st.success("Logged Out Successfully")
 
-    intake = firebase_get_today_intake(st.session_state.username)
-    remaining = max(0, daily_goal - intake)
-    percentage = min(100, int((intake / daily_goal) * 100))
 
-    st.write(f"Water consumed today: {intake} ml")
-    st.write(f"Remaining: {remaining} ml")
+# ----------------------------------------------------------------
+# PAGE ROUTING
+# ----------------------------------------------------------------
+if "page" not in st.session_state:
+    st.session_state.page = "login"
 
-    st.progress(percentage / 100)
-
-    if percentage < 25:
-        st.info("Good start. Keep going.")
-    elif percentage < 50:
-        st.info("Nice progress.")
-    elif percentage < 75:
-        st.success("Great! Halfway completed.")
-    elif percentage < 100:
-        st.success("Almost there!")
-    else:
-        st.success("Goal achieved!")
-
-# -------------------------------------------------------
-# PROGRESS PAGE
-# -------------------------------------------------------
-def page_progress():
-    st.header("Daily Progress Report")
-
-    intake = firebase_get_today_intake(st.session_state.username)
-    st.write(f"Today’s total intake: {intake} ml")
-
-    tips = [
-        "Carry a bottle everywhere.",
-        "Start your day with a glass of water.",
-        "Hydration improves focus and memory.",
-        "Drinking water boosts metabolism.",
-        "Your brain works better when hydrated."
-    ]
-    st.subheader("Hydration Tip")
-    st.write(random.choice(tips))
-
-# -------------------------------------------------------
-# PROFILE PAGE
-# -------------------------------------------------------
-def page_profile():
-    st.header("Profile Information")
-    st.write(f"Username: {st.session_state.username}")
-    st.write("Data stored securely in Firebase Firestore.")
-
-# -------------------------------------------------------
-# LOGOUT
-# -------------------------------------------------------
-def page_logout():
-    st.session_state.logged_in = False
-    st.session_state.username = None
-    st.session_state.current_page = "Login"
-
-# -------------------------------------------------------
-# APPLICATION FLOW
-# -------------------------------------------------------
 if not st.session_state.logged_in:
-    if st.session_state.current_page == "Signup":
-        page_signup()
+    if st.session_state.page == "signup":
+        signup_page()
     else:
-        page_login()
-
+        login_page()
 else:
-    nav_sidebar()
-
-    if st.session_state.current_page == "Home":
-        page_home()
-    elif st.session_state.current_page == "Log Water":
-        page_log()
-    elif st.session_state.current_page == "Progress":
-        page_progress()
-    elif st.session_state.current_page == "Profile":
-        page_profile()
-    elif st.session_state.current_page == "Logout":
-        page_logout()
+    dashboard()
