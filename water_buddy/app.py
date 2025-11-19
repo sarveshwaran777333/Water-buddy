@@ -145,10 +145,16 @@ def login_page():
         st.session_state.age_group = get_age_group(st.session_state.age)
         st.session_state.daily_goal = user_data.get("goal", 2000)
         st.session_state.intake = 0
-        st.session_state.theme = "Light"
 
-        # DIRECTLY OPEN SETTINGS PAGE
-        st.session_state.page = "settings"
+        # Theme load
+        st.session_state.theme = user_data.get("theme", "Light")
+
+        # GO TO HOME PAGE AFTER LOGIN
+        st.session_state.page = "home"
+
+    st.write("Don't have an account?")
+    if st.button("Create New Account"):
+        st.session_state.page = "signup"
 
 
 # =========================
@@ -307,5 +313,6 @@ def main():
 
 
 main()
+
 
 
