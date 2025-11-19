@@ -7,4 +7,6 @@ streamlit-lottie==0.0.5
 meteostat==1.7.6
 matplotlib==3.10.3
 firebase-admin
+requests
+
 
