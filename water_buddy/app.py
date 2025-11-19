@@ -310,7 +310,7 @@ def dashboard_ui():
         if theme_choice != st.session_state.get("theme"):
             st.session_state.theme = theme_choice
             apply_theme(theme_choice)
-            st.experimental_rerun()
+            st.rerun()
 
         nav = st.radio("Navigate", ["Home", "Log Water", "Settings", "Logout"])
         st.markdown("---")
@@ -440,3 +440,4 @@ if not st.session_state.logged_in:
         login_ui()
 else:
     dashboard_ui()
+
