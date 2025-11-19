@@ -244,7 +244,7 @@ def login_ui():
             st.session_state.uid = uid
             st.success("Login successful.")
             time.sleep(0.6)
-            st.experimental_rerun()
+            st.rerun()
         else:
             st.error("Invalid username or password.")
     st.write("")
@@ -410,3 +410,4 @@ if not st.session_state.logged_in:
         login_ui()
 else:
     dashboard_ui()
+
