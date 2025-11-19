@@ -247,7 +247,8 @@ def apply_theme(theme_name: str):
             /* Sidebar text */
             .stSidebar, .css-1d391kg { color: #000000 !important; }
             </style>
-        """, unsafe_allow_html=True))
+        """, unsafe_allow_html=True)
+        
 
     else:
         # Light
@@ -460,6 +461,7 @@ if not st.session_state.logged_in:
         login_ui()
 else:
     dashboard_ui()
+
 
 
 
