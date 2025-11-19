@@ -230,14 +230,14 @@ def apply_theme(theme_name: str):
         """, unsafe_allow_html=True)
 
     elif theme_name == "Aqua":
-        st.markdown("""
-            <style>
-            .stApp { background-color: #e8fbff; color: #000000; }
-            .stButton>button { background-color: #0077b6; color: #fff; border-radius:6px; }
-            /* Fix radio/nav visibility */
-            div.stRadio label { color: #003f5c !important; font-weight: 600; }
-            </style>
-        """, unsafe_allow_html=True)
+    st.markdown("""
+        <style>
+        .stApp { background-color: #e8fbff; color: #000000; }
+        .stButton>button { background-color: #0077b6; color: #fff; border-radius:6px; }
+        /* Fix radio/nav visibility */
+        div.stRadio label { color: #000000 !important; font-weight: 600; }
+        </style>
+    """, unsafe_allow_html=True)
 
     else:
         # Light
@@ -450,6 +450,7 @@ if not st.session_state.logged_in:
         login_ui()
 else:
     dashboard_ui()
+
 
 
 
