@@ -221,27 +221,72 @@ def apply_theme(theme_name: str):
     if theme_name == "Dark":
         st.markdown("""
             <style>
-            .stApp { background-color: #0f1720; color: #e6eef6; }
-            .stButton>button { background-color: #444444; color: #ffffff; border-radius:6px; }
-            .stTextInput>div>input { background-color: #1a1a1a; color: #eee; }
+            .stApp {
+                background-color: #0f1720;
+                color: #e6eef6;
+            }
+            .stButton>button {
+                background-color: #444444;
+                color: #ffffff;
+                border-radius:6px;
+            }
+            .stTextInput>div>input {
+                background-color: #1a1a1a;
+                color: #eeeeee;
+            }
             </style>
         """, unsafe_allow_html=True)
+
     elif theme_name == "Aqua":
         st.markdown("""
             <style>
-            .stApp { background-color: #e8fbff; color: #003f5c; }
-            .stButton>button { background-color: #0077b6; color: #fff; border-radius:6px; }
+            .stApp {
+                background-color: #e4faff;
+                color: #003049;
+            }
+            .stMarkdown, .stText, .stRadio, label, .stSelectbox, .stNumberInput {
+                color: #003049 !important;
+            }
+            .stButton>button {
+                background-color: #0077b6;
+                color: #ffffff !important;
+                border-radius:6px;
+            }
+            .stTextInput>div>input {
+                background-color: #ffffff;
+                color: #003049;
+            }
+            .stRadio>div>label {
+                color: #003049 !important;
+            }
             </style>
         """, unsafe_allow_html=True)
-    else:
-        # Light
+
+    else:   # Light mode
         st.markdown("""
             <style>
-            .stApp { background-color: #ffffff; color: #000000; }
-            .stButton>button { background-color: #ADD8E6; color: #000000; border-radius:6px; }
-            .stTextInput>div>input { background-color: #fff; color: #000; }
+            .stApp {
+                background-color: #ffffff;
+                color: #000000;
+            }
+            .stMarkdown, .stText, .stRadio, label, .stSelectbox, .stNumberInput {
+                color: #000000 !important;
+            }
+            .stButton>button {
+                background-color: #ADD8E6;
+                color: #000000 !important;
+                border-radius:6px;
+            }
+            .stTextInput>div>input {
+                background-color: #ffffff;
+                color: #000000;
+            }
+            .stRadio>div>label {
+                color: #000000 !important;
+            }
             </style>
         """, unsafe_allow_html=True)
+
 
 # -----------------------
 # Login UI
@@ -440,4 +485,5 @@ if not st.session_state.logged_in:
         login_ui()
 else:
     dashboard_ui()
+
 
