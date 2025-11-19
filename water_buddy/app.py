@@ -355,7 +355,7 @@ def dashboard_ui():
                         ok = set_today_intake(uid, new_val)
                         if ok:
                             st.success(f"Added {int(custom)} ml.")
-                            st.experimental_rerun()
+                            st.rerun()
                         else:
                             st.error("Failed to update. Check network/DB rules.")
             with c3:
@@ -410,5 +410,6 @@ if not st.session_state.logged_in:
         login_ui()
 else:
     dashboard_ui()
+
 
 
