@@ -3,7 +3,7 @@ import requests
 import json
 
 # ---------------------------------------------------------
-# FIREBASE SETTINGS
+# FIREBASE SETTINGS (Realtime Database REST API)
 # ---------------------------------------------------------
 FIREBASE_URL = "https://waterhydrator-9ecad-default-rtdb.asia-southeast1.firebasedatabase.app"
 USERS_NODE = "users"
@@ -12,60 +12,69 @@ USERS_NODE = "users"
 # ---------------------------------------------------------
 # FIREBASE FUNCTIONS
 # ---------------------------------------------------------
-def create_user(email, password, name):
-    """Store new user in Firebase."""
-    payload = {
-        "email": email,
-        "password": password,
-        "name": name
-    }
-    url = f"{FIREBASE_URL}/{USERS_NODE}.json"
-    r = requests.post(url, data=json.dumps(payload))
+def firebase_write(path, data):
+    url = f"{FIREBASE_URL}/{path}.json"
+    r = requests.put(url, data=json.dumps(data))
     return r.status_code == 200
 
 
-def validate_login(email, password):
-    """Verify user credentials in Firebase."""
-    url = f"{FIREBASE_URL}/{USERS_NODE}.json"
-    r = requests.get(url)
-
-    if r.status_code != 200:
-        return False, None
-
-    users = r.json()
-
-    if users:
-        for uid, details in users.items():
-            if details.get("email") == email and details.get("password") == password:
-                return True, uid
-
+def firebase_push(path, data):
+    url = f"{FIREBASE_URL}/{path}.json"
+    r = requests.post(url, data=json.dumps(data))
+    if r.status_code == 200:
+        return True, r.json()
     return False, None
 
 
-def save_user_data(user_id, key, value):
-    """Save user-specific data."""
-    url = f"{FIREBASE_URL}/{USERS_NODE}/{user_id}/{key}.json"
-    requests.put(url, data=json.dumps(value))
-
-
-def get_user_data(user_id, key):
-    """Retrieve user-specific field."""
-    url = f"{FIREBASE_URL}/{USERS_NODE}/{user_id}/{key}.json"
+def firebase_read(path):
+    url = f"{FIREBASE_URL}/{path}.json"
     r = requests.get(url)
     if r.status_code == 200:
         return r.json()
     return None
 
 
-# ---------------------------------------------------------
-# STREAMLIT APP LAYOUT
-# ---------------------------------------------------------
-st.set_page_config(page_title="Hydration App", layout="wide")
+def create_user(email, password, name):
+    payload = {
+        "name": name,
+        "email": email,
+        "password": password,
+        "todays_intake_ml": 0
+    }
+    return firebase_push(USERS_NODE, payload)[0]
 
+
+def validate_login(email, password):
+    all_users = firebase_read(USERS_NODE)
+
+    if not all_users:
+        return False, None
+
+    for user_id, details in all_users.items():
+        if details.get("email") == email and details.get("password") == password:
+            return True, user_id
+
+    return False, None
+
+
+def update_user_intake(user_id, new_value):
+    return firebase_write(f"{USERS_NODE}/{user_id}/todays_intake_ml", new_value)
+
+
+def get_user_intake(user_id):
+    data = firebase_read(f"{USERS_NODE}/{user_id}/todays_intake_ml")
+    return data if data else 0
+
+
+# ---------------------------------------------------------
+# INITIAL STREAMLIT SESSION STATE
+# ---------------------------------------------------------
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
+
 if "user_id" not in st.session_state:
     st.session_state.user_id = None
+
 if "page" not in st.session_state:
     st.session_state.page = "login"
 
@@ -74,21 +83,19 @@ if "page" not in st.session_state:
 # LOGIN PAGE
 # ---------------------------------------------------------
 def login_page():
-    st.title("User Login")
+    st.title("WaterBuddy – Login")
 
     email = st.text_input("Email")
     password = st.text_input("Password", type="password")
 
-    login_btn = st.button("Login")
-
-    if login_btn:
-        success, uid = validate_login(email, password)
+    if st.button("Login"):
+        success, user_id = validate_login(email, password)
         if success:
             st.session_state.logged_in = True
-            st.session_state.user_id = uid
-            st.success("Login successful.")
+            st.session_state.user_id = user_id
+            st.success("Login successful")
         else:
-            st.error("Incorrect email or password.")
+            st.error("Invalid email or password")
 
     st.write("New user?")
     if st.button("Go to Sign Up"):
@@ -105,54 +112,74 @@ def signup_page():
     email = st.text_input("Email")
     password = st.text_input("Password", type="password")
 
-    signup_btn = st.button("Sign Up")
-
-    if signup_btn:
+    if st.button("Sign Up"):
         created = create_user(email, password, name)
         if created:
             st.success("Account created successfully.")
             st.session_state.page = "login"
         else:
-            st.error("Failed to create account. Try again.")
+            st.error("Failed to create account.")
 
     if st.button("Back to Login"):
         st.session_state.page = "login"
 
 
 # ---------------------------------------------------------
-# LOGGED-IN DASHBOARD
+# DASHBOARD (LEFT PANE NAV, RIGHT PANE CONTENT)
 # ---------------------------------------------------------
 def dashboard():
-    st.title("Hydration Dashboard")
+    st.title("WaterBuddy Dashboard")
 
-    menu = st.sidebar.radio("Navigation", ["Home", "Log Water", "Logout"])
+    # Create two columns: left = navigation, right = page content
+    left, right = st.columns([1, 3])
 
-    if menu == "Home":
-        st.subheader("Overview")
+    with left:
+        st.subheader("Navigation")
+        page = st.radio("Go to", ["Home", "Log Water", "Logout"])
 
-        current = get_user_data(st.session_state.user_id, "todays_water")
-        if current is None:
-            current = 0
+    with right:
+        if page == "Home":
+            st.subheader("Today's Hydration Summary")
 
-        st.write(f"Water consumed today: {current} liters")
+            current_ml = get_user_intake(st.session_state.user_id)
 
-    elif menu == "Log Water":
-        st.subheader("Record Today's Water Intake")
-        value = st.number_input("Enter liters", min_value=0.0, step=0.1)
+            st.write(f"Total consumed today: {current_ml} ml")
 
-        if st.button("Save"):
-            save_user_data(st.session_state.user_id, "todays_water", value)
-            st.success("Saved successfully.")
+            goal = 2500  # Fixed example goal
+            percent = min(round((current_ml / goal) * 100, 2), 100)
 
-    elif menu == "Logout":
-        st.session_state.logged_in = False
-        st.session_state.user_id = None
-        st.session_state.page = "login"
-        st.success("Logged out.")
+            st.progress(percent / 100)
+
+            if percent < 30:
+                st.info("Keep going, stay hydrated.")
+            elif percent < 70:
+                st.success("Great progress!")
+            elif percent < 100:
+                st.success("Almost there!")
+            else:
+                st.success("Goal achieved!")
+
+        elif page == "Log Water":
+            st.subheader("Log Water Intake")
+
+            current_ml = get_user_intake(st.session_state.user_id)
+
+            add = st.number_input("Add Amount (ml)", min_value=0, step=50)
+
+            if st.button("Add"):
+                new_value = current_ml + add
+                update_user_intake(st.session_state.user_id, new_value)
+                st.success("Water logged successfully.")
+
+        elif page == "Logout":
+            st.session_state.logged_in = False
+            st.session_state.user_id = None
+            st.session_state.page = "login"
+            st.success("Logged out.")
 
 
 # ---------------------------------------------------------
-# PAGE ROUTING
+# APP ROUTING
 # ---------------------------------------------------------
 if not st.session_state.logged_in:
     if st.session_state.page == "signup":
