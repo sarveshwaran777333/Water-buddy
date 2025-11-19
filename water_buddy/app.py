@@ -363,7 +363,7 @@ def dashboard_ui():
                     ok = reset_today_intake(uid)
                     if ok:
                         st.info("Reset successful.")
-                        st.experimental_rerun()
+                        st.rerun()
                     else:
                         st.error("Failed to reset. Check network/DB rules.")
 
@@ -410,6 +410,7 @@ if not st.session_state.logged_in:
         login_ui()
 else:
     dashboard_ui()
+
 
 
 
