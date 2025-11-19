@@ -232,7 +232,7 @@ def apply_theme(theme_name: str):
     elif theme_name == "Aqua":
         st.markdown("""
             <style>
-            .stApp { background-color: #e8fbff; color: #003f5c; }
+            .stApp { background-color: #e8fbff; color: #000000; }
             .stButton>button { background-color: #0077b6; color: #fff; border-radius:6px; }
             /* Fix radio/nav visibility */
             div.stRadio label { color: #003f5c !important; font-weight: 600; }
@@ -450,6 +450,7 @@ if not st.session_state.logged_in:
         login_ui()
 else:
     dashboard_ui()
+
 
 
 
