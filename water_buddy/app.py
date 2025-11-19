@@ -397,7 +397,7 @@ def dashboard_ui():
             st.session_state.logged_in = False
             st.session_state.uid = None
             st.session_state.page = "login"
-            st.experimental_rerun()
+            st.rerun()
 
 # -----------------------
 # Routing
@@ -409,6 +409,7 @@ if not st.session_state.logged_in:
         login_ui()
 else:
     dashboard_ui()
+
 
 
 
