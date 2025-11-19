@@ -292,8 +292,7 @@ def dashboard_ui():
         st.info(st.session_state.tip)
         if st.button("New tip"):
             st.session_state.tip = random.choice(TIPS)
-            st.experimental_rerun()
-
+            st.rerun()
     with right_col:
         if nav == "Home":
             st.header("Today's Summary")
@@ -410,6 +409,7 @@ if not st.session_state.logged_in:
         login_ui()
 else:
     dashboard_ui()
+
 
 
 
