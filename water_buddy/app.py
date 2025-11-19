@@ -233,11 +233,21 @@ def apply_theme(theme_name: str):
         st.markdown("""
             <style>
             .stApp { background-color: #e8fbff; color: #000000; }
-            .stButton>button { background-color: #0077b6; color: #fff; border-radius:6px; }
-            /* Fix radio/nav visibility */
-            div.stRadio label { color: #000000 !important; font-weight: 600; }
+
+            /* Buttons */
+            .stButton>button { background-color: #0077b6 !important; 
+                           color: #ffffff !important; border-radius:6px; }
+
+            /* Radio Navigation Labels (Home, Log Water, etc.) */
+            div.stRadio label { 
+            color: #000000 !important; 
+            font-weight: 600; 
+            }
+
+            /* Sidebar text */
+            .stSidebar, .css-1d391kg { color: #000000 !important; }
             </style>
-        """, unsafe_allow_html=True)
+        """, unsafe_allow_html=True))
 
     else:
         # Light
@@ -450,6 +460,7 @@ if not st.session_state.logged_in:
         login_ui()
 else:
     dashboard_ui()
+
 
 
 
