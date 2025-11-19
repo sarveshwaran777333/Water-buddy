@@ -1,139 +1,192 @@
 import streamlit as st
 import random
 
-# ------------------------------
-# Session State (Data Storage)
-# ------------------------------
+st.set_page_config(page_title="WaterBuddy", page_icon="💧")
+
+# -------------------------------------------------------
+# INITIALIZE SESSION STATE
+# -------------------------------------------------------
+if "users" not in st.session_state:
+    st.session_state.users = {}     # {username: password}
+
+if "logged_in" not in st.session_state:
+    st.session_state.logged_in = False
+
+if "username" not in st.session_state:
+    st.session_state.username = None
+
 if "intake" not in st.session_state:
     st.session_state.intake = 0
-if "goal" not in st.session_state:
-    st.session_state.goal = 0
-if "age_group" not in st.session_state:
-    st.session_state.age_group = None
 
-# ------------------------------
-# Standard Recommended Goals
-# ------------------------------
-standard_goals = {
-    "6-12": 1600,
-    "13-18": 2000,
-    "19-50": 2500,
-    "65+": 2000
-}
-
-# ------------------------------
-# Sidebar Navigation
-# ------------------------------
-st.sidebar.title("WaterBuddy Navigation")
-page = st.sidebar.radio(
-    "Go to:",
-    ["1. Set Profile", "2. Track Intake", "3. Progress & Feedback"]
-)
+if "daily_goal" not in st.session_state:
+    st.session_state.daily_goal = None
 
 
-# ==========================================================
-# PAGE 1: Set Profile (Age group & Daily Goal)
-# ==========================================================
-if page == "1. Set Profile":
-    st.title("WaterBuddy - Set Your Profile")
+# -------------------------------------------------------
+# SIGNUP PAGE
+# -------------------------------------------------------
+def signup_page():
+    st.title("WaterBuddy – Create an Account")
 
-    age = st.selectbox(
-        "Select your age group:",
-        ["6-12", "13-18", "19-50", "65+"]
-    )
+    new_user = st.text_input("Choose a Username")
+    new_pass = st.text_input("Create Password", type="password")
 
-    st.session_state.age_group = age
-
-    # Auto suggested goal
-    suggested = standard_goals[age]
-    st.write(f"Suggested daily goal for this age group: {suggested} ml")
-
-    custom_goal = st.number_input(
-        "Set your daily water goal (ml):",
-        value=suggested,
-        min_value=500,
-        step=100
-    )
-
-    st.session_state.goal = custom_goal
-
-    st.success(f"Daily goal saved: {custom_goal} ml")
-
-
-# ==========================================================
-# PAGE 2: Track Intake (Logging & Reset)
-# ==========================================================
-elif page == "2. Track Intake":
-    st.title("WaterBuddy - Track Your Water Intake")
-
-    if st.session_state.goal == 0:
-        st.warning("Please set your profile and goal in Page 1 first.")
-    else:
-        st.write(f"Daily Goal: {st.session_state.goal} ml")
-        st.write(f"Water consumed today: {st.session_state.intake} ml")
-
-        col1, col2 = st.columns(2)
-
-        with col1:
-            if st.button("Add +250 ml"):
-                st.session_state.intake += 250
-                st.success("Logged 250 ml.")
-
-        with col2:
-            manual = st.number_input("Add custom amount (ml):", min_value=0, step=50)
-            if st.button("Add"):
-                st.session_state.intake += manual
-                st.success(f"Logged {manual} ml.")
-
-        if st.button("Reset Today"):
-            st.session_state.intake = 0
-            st.success("Daily log reset.")
-
-
-# ==========================================================
-# PAGE 3: Progress & Feedback
-# ==========================================================
-elif page == "3. Progress & Feedback":
-    st.title("WaterBuddy - Progress Report")
-
-    if st.session_state.goal == 0:
-        st.warning("Please set your profile and goal in Page 1 first.")
-    else:
-        total = st.session_state.intake
-        goal = st.session_state.goal
-
-        remaining = max(goal - total, 0)
-        percentage = min(int((total / goal) * 100), 100)
-
-        st.write(f"Total consumed: {total} ml")
-        st.write(f"Remaining: {remaining} ml")
-        st.write(f"Completion: {percentage}%")
-
-        # Progress Bar
-        st.progress(percentage / 100)
-
-        # Motivational Messages
-        if percentage == 0:
-            msg = "Let's start! Drink your first glass."
-        elif percentage < 25:
-            msg = "Good start! Keep going."
-        elif percentage < 50:
-            msg = "Nice! You’re getting there."
-        elif percentage < 75:
-            msg = "Great progress! Stay hydrated."
-        elif percentage < 100:
-            msg = "Almost there! One more push!"
+    if st.button("Sign Up"):
+        if new_user == "" or new_pass == "":
+            st.warning("Username and password cannot be empty.")
+        elif new_user in st.session_state.users:
+            st.error("This username is already taken.")
         else:
-            msg = "Excellent! You completed your hydration goal."
+            st.session_state.users[new_user] = new_pass
+            st.success("Account created successfully. Please log in.")
 
-        st.info(msg)
 
-        # Optional hydration tips
-        tips = [
-            "Your body is 70% water. Keep it fueled.",
-            "Sip water throughout the day, not all at once.",
-            "Carry a bottle to remind yourself to drink."
-        ]
+    if st.button("Already have an account? Login"):
+        st.session_state.page = "login"
 
-        st.write("Daily Tip:")
-        st.success(random.choice(tips))
+
+# -------------------------------------------------------
+# LOGIN PAGE
+# -------------------------------------------------------
+def login_page():
+    st.title("WaterBuddy – Login")
+
+    user = st.text_input("Username")
+    pwd = st.text_input("Password", type="password")
+
+    if st.button("Login"):
+        if user in st.session_state.users and st.session_state.users[user] == pwd:
+            st.session_state.logged_in = True
+            st.session_state.username = user
+            st.success("Login successful")
+        else:
+            st.error("Invalid login credentials.")
+
+    if st.button("Create New Account"):
+        st.session_state.page = "signup"
+
+
+# -------------------------------------------------------
+# MAIN WATERBUDDY APP
+# -------------------------------------------------------
+def waterbuddy_home():
+
+    st.title("WaterBuddy – Your Personal Hydration Tracker")
+
+    # -------------------------------
+    # AGE SELECTION AND GOAL SETTING
+    # -------------------------------
+    st.subheader("Step 1: Choose Age Group")
+
+    age_group = st.selectbox(
+        "Select your age range:",
+        ["6–12", "13–18", "19–50", "65+"],
+    )
+
+    # Age-based standard goals
+    standard_goals = {
+        "6–12": 1600,
+        "13–18": 1800,
+        "19–50": 2500,
+        "65+": 2000,
+    }
+
+    default_goal = standard_goals[age_group]
+
+    st.write(f"Standard suggested goal: {default_goal} ml")
+
+    st.subheader("Step 2: Adjust Daily Goal (Optional)")
+    st.session_state.daily_goal = st.number_input(
+        "Set your personal daily goal (ml):",
+        min_value=500,
+        max_value=4000,
+        value=default_goal,
+        step=50
+    )
+
+    # -------------------------------
+    # LOG WATER INTAKE
+    # -------------------------------
+    st.subheader("Step 3: Log Your Intake")
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+        if st.button("+250 ml"):
+            st.session_state.intake += 250
+
+    with col2:
+        manual = st.number_input("Or enter a custom amount (ml):", 0, 2000, 0, 50)
+        if st.button("Add Intake"):
+            st.session_state.intake += manual
+
+    # -------------------------------
+    # RESET BUTTON
+    # -------------------------------
+    if st.button("Reset Today"):
+        st.session_state.intake = 0
+
+    # -------------------------------
+    # CALCULATIONS
+    # -------------------------------
+    intake = st.session_state.intake
+    goal = st.session_state.daily_goal
+
+    remaining = goal - intake if goal > intake else 0
+    percentage = min(100, int((intake / goal) * 100))
+
+    st.write(f"Total Water Consumed: {intake} ml")
+    st.write(f"Remaining to reach goal: {remaining} ml")
+
+    # PROGRESS BAR
+    st.progress(percentage / 100)
+
+    # -------------------------------
+    # MOTIVATIONAL MESSAGES
+    # -------------------------------
+    if percentage < 25:
+        st.info("Good start! Keep going.")
+    elif percentage < 50:
+        st.info("Nice progress. Halfway coming soon.")
+    elif percentage < 75:
+        st.success("Great! You crossed 50%.")
+    elif percentage < 100:
+        st.success("Almost there! Stay hydrated.")
+    else:
+        st.success("Congratulations! You reached your daily target.")
+
+    # -------------------------------
+    # RANDOM DAILY TIPS
+    # -------------------------------
+    tips = [
+        "Drinking water boosts your concentration.",
+        "Water helps digestion and metabolism.",
+        "Start your day with a glass of water.",
+        "Keep a water bottle near you while working.",
+        "Staying hydrated improves mood and energy.",
+    ]
+
+    st.subheader("Hydration Tip of the Day")
+    st.write(random.choice(tips))
+
+    # -------------------------------
+    # LOGOUT BUTTON
+    # -------------------------------
+    if st.button("Logout"):
+        st.session_state.logged_in = False
+        st.session_state.username = None
+
+
+# -------------------------------------------------------
+# PAGE NAVIGATION HANDLING
+# -------------------------------------------------------
+if "page" not in st.session_state:
+    st.session_state.page = "login"
+
+if not st.session_state.logged_in:
+    if st.session_state.page == "signup":
+        signup_page()
+    else:
+        login_page()
+else:
+    waterbuddy_home()
