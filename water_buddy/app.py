@@ -3,7 +3,7 @@ import requests
 import json
 
 # ---------------------------------------------------------
-# FIREBASE SETTINGS (Realtime Database REST API)
+# FIREBASE SETTINGS
 # ---------------------------------------------------------
 FIREBASE_URL = "https://waterhydrator-9ecad-default-rtdb.asia-southeast1.firebasedatabase.app"
 USERS_NODE = "users"
@@ -34,9 +34,8 @@ def firebase_read(path):
     return None
 
 
-def create_user(username, password, name):
+def create_user(username, password):
     payload = {
-        "name": name,
         "username": username,
         "password": password,
         "todays_intake_ml": 0
@@ -67,7 +66,7 @@ def get_user_intake(user_id):
 
 
 # ---------------------------------------------------------
-# INITIAL STREAMLIT SESSION STATE
+# SESSION STATE INITIALIZATION
 # ---------------------------------------------------------
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
@@ -108,12 +107,11 @@ def login_page():
 def signup_page():
     st.title("Create Account")
 
-    name = st.text_input("Full Name")
-    username = st.text_input("Choose a Username")
-    password = st.text_input("Password", type="password")
+    username = st.text_input("Create Username")
+    password = st.text_input("Create Password", type="password")
 
     if st.button("Sign Up"):
-        created = create_user(username, password, name)
+        created = create_user(username, password)
         if created:
             st.success("Account created successfully.")
             st.session_state.page = "login"
@@ -125,12 +123,12 @@ def signup_page():
 
 
 # ---------------------------------------------------------
-# DASHBOARD (LEFT PANE NAV, RIGHT PANE CONTENT)
+# DASHBOARD (LEFT AND RIGHT PANES)
 # ---------------------------------------------------------
 def dashboard():
     st.title("WaterBuddy Dashboard")
 
-    # Create two columns: left = navigation, right = content
+    # Two columns: left = navigation, right = content
     left, right = st.columns([1, 3])
 
     with left:
