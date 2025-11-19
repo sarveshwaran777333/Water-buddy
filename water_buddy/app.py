@@ -153,3 +153,38 @@ def dashboard():
             if percent < 30:
                 st.info("Keep going, stay hydrated.")
             elif percent < 70:
+                st.success("Great progress!")
+            elif percent < 100:
+                st.success("Almost there!")
+            else:
+                st.success("Goal achieved!")
+
+        elif page == "Log Water":
+            st.subheader("Log Water Intake")
+
+            current_ml = get_user_intake(st.session_state.user_id)
+
+            add = st.number_input("Add Amount (ml)", min_value=0, step=50)
+
+            if st.button("Add"):
+                new_value = current_ml + add
+                update_user_intake(st.session_state.user_id, new_value)
+                st.success("Water logged successfully.")
+
+        elif page == "Logout":
+            st.session_state.logged_in = False
+            st.session_state.user_id = None
+            st.session_state.page = "login"
+            st.success("Logged out.")
+
+
+# ---------------------------------------------------------
+# ROUTING
+# ---------------------------------------------------------
+if not st.session_state.logged_in:
+    if st.session_state.page == "signup":
+        signup_page()
+    else:
+        login_page()
+else:
+    dashboard()
