@@ -250,7 +250,7 @@ def login_ui():
     st.write("")
     if st.button("Create new account"):
         st.session_state.page = "signup"
-        st.experimental_rerun()
+        st.rerun()
 
 # -----------------------
 # Signup UI
@@ -267,12 +267,12 @@ def signup_ui():
         if created_uid:
             st.success("Account created. You can now log in.")
             st.session_state.page = "login"
-            st.experimental_rerun()
+            st.rerun()
         else:
             st.error("Username already exists or network error.")
     if st.button("Back to Login"):
         st.session_state.page = "login"
-        st.experimental_rerun()
+        st.rerun()
 
 # -----------------------
 # Dashboard UI (left/right)
@@ -409,6 +409,7 @@ if not st.session_state.logged_in:
         login_ui()
 else:
     dashboard_ui()
+
 
 
 
