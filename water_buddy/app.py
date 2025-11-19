@@ -1,345 +1,145 @@
+# app.py
+"""
+WaterBuddy - Streamlit implementation (Stage 4-6)
+Features:
+ - Age group selector with auto-suggested goal and manual override
+ - Quick +250 ml log button and manual logging input
+ - Reset today's intake
+ - Store live state in st.session_state
+ - Compute total intake, remaining, percentage
+ - Progress bar and SVG animated water-bottle visualization
+ - Milestone messages (25%, 50%, 75%, 100%)
+ - Unit converter (ml <-> cups)
+ - Random daily hydration tip in the sidebar
+"""
+
 import streamlit as st
-import requests
-import datetime
-import matplotlib.pyplot as plt
-import json
-import urllib.request
+import random
+import math
+from datetime import date
 
-FIREBASE_URL = "https://waterhydrator-9ecad-default-rtdb.asia-southeast1.firebasedatabase.app"
+# --------------------------
+# Configuration / constants
+# --------------------------
+AGE_GOALS_ML = {
+    "6-12 (Child)": 1600,
+    "13-18 (Teen)": 2000,
+    "19-50 (Adult)": 2500,
+    "51-64 (Mature Adult)": 2300,
+    "65+ (Senior)": 2000,
+}
 
+DEFAULT_QUICK_LOG_ML = 250
+CUPS_TO_ML = 236.588  # 1 US cup in ml (approx)
 
-def firebase_get(path):
-    url = f"{FIREBASE_URL}{path}.json"
-    try:
-        with urllib.request.urlopen(url) as response:
-            data = json.loads(response.read().decode())
-            return data
-    except Exception:
-        return None
+TIPS = [
+    "Keep a filled bottle at your desk — visible cues help.",
+    "Drink a glass (250 ml) after every bathroom break.",
+    "Start your day with a glass of water.",
+    "Add a slice of lemon or cucumber if you prefer flavored water.",
+    "Set small goals: 1 glass every 45–60 minutes.",
+    "Hydrate before meals — it helps digestion and satiety.",
+    "Carry a reusable bottle — tracking becomes easier.",
+    "Drink water after exercise — replace lost fluids.",
+]
 
+# --------------------------
+# Utility functions
+# --------------------------
+def init_session():
+    if "date" not in st.session_state or st.session_state.date != str(date.today()):
+        # New day or fresh start: initialize
+        st.session_state.date = str(date.today())
+        st.session_state.intake_ml = 0
+        st.session_state.age_group = "19-50 (Adult)"
+        st.session_state.suggested_goal_ml = AGE_GOALS_ML[st.session_state.age_group]
+        st.session_state.user_goal_ml = st.session_state.suggested_goal_ml
+        st.session_state.milestone_flags = {"25": False, "50": False, "75": False, "100": False}
+        st.session_state.log_history = []  # list of tuples (amount_ml, timestamp-string)
+    # Ensure keys exist
+    if "intake_ml" not in st.session_state:
+        st.session_state.intake_ml = 0
+    if "user_goal_ml" not in st.session_state:
+        st.session_state.user_goal_ml = AGE_GOALS_ML.get(st.session_state.age_group, 2500)
 
-def firebase_patch(path, data):
-    url = f"{FIREBASE_URL}{path}.json"
-    req = urllib.request.Request(url, data=json.dumps(data).encode(), method="PATCH")
-    try:
-        with urllib.request.urlopen(req) as response:
-            return json.loads(response.read().decode())
-    except Exception:
-        return None
+def add_intake(amount_ml: int):
+    amount_ml = max(0, int(amount_ml))
+    st.session_state.intake_ml += amount_ml
+    st.session_state.log_history.append((amount_ml, st.time.strftime("%H:%M:%S")))
+    check_milestones()
 
+def reset_day():
+    st.session_state.intake_ml = 0
+    st.session_state.milestone_flags = {"25": False, "50": False, "75": False, "100": False}
+    st.session_state.log_history = []
 
-def firebase_put(path, data):
-    url = f"{FIREBASE_URL}{path}.json"
-    req = urllib.request.Request(url, data=json.dumps(data).encode(), method="PUT")
-    try:
-        with urllib.request.urlopen(req) as response:
-            return json.loads(response.read().decode())
-    except Exception:
-        return None
+def ml_to_cups(ml: float) -> float:
+    return ml / CUPS_TO_ML
 
+def cups_to_ml(cups: float) -> float:
+    return cups * CUPS_TO_ML
 
-# ---------------------------
-# 💧 Water Goal Recommendation
-# ---------------------------
-def recommended_goal(age, gender="Not specified"):
-    if age <= 0.5:
-        return 700
-    elif age <= 1:
-        return 800
-    elif age <= 3:
-        return 1300
-    elif age <= 8:
-        return 1700
-    elif age <= 13:
-        return 2400 if gender.lower() in ["male", "boy"] else 2100
-    elif age <= 18:
-        return 3300 if gender.lower() in ["male", "boy"] else 2300
-    elif age <= 64:
-        return 3700 if gender.lower() in ["male", "man"] else 2700
-    else:
-        return 2300
+def compute_progress():
+    goal = max(1, int(st.session_state.user_goal_ml))
+    intake = max(0, int(st.session_state.intake_ml))
+    percent = min(100, (intake / goal) * 100)
+    remaining = max(0, goal - intake)
+    return intake, remaining, percent
 
-
-# ---------------------------
-# 🔐 Signup Page
-# ---------------------------
-def signup_page():
-    st.title("🧍‍♀️ Create Your Water Buddy Account")
-
-    username = st.text_input("Enter Username")
-    password = st.text_input("Enter Password", type="password")
-    age = st.number_input("Enter your age:", min_value=1, max_value=100, value=18)
-    daily_goal = recommended_goal(age)
-
-    default_city = "Chennai"
-    try:
-        geo = requests.get(
-            f"https://nominatim.openstreetmap.org/search?city={default_city}&format=json",
-            headers={"User-Agent": "WaterBuddyApp"},
-            timeout=5
-        )
-        location_data = geo.json()
-        lat, lon = (location_data[0]["lat"], location_data[0]["lon"]) if location_data else (0, 0)
-    except Exception:
-        lat, lon = 0, 0
-
-    if st.button("Sign Up"):
-        if username and password:
-            user_data = {
-                "password": password,
-                "created_at": str(datetime.date.today()),
-                "age": age,
-                "daily_goal": daily_goal,
-                "rewards": 0,
-                "completed_tasks": {},
-                "logged_today": 0,
-                "history": {},
-                "location": {"lat": lat, "lon": lon}
-            }
-            firebase_put(f"users/{username}", user_data)
-            st.success("✅ Account created successfully! You can log in now.")
-            st.session_state["page"] = "login"
-            st.rerun()
+def check_milestones():
+    intake, remaining, percent = compute_progress()
+    flags = st.session_state.milestone_flags
+    messages = []
+    # Check and set flags for 25,50,75,100
+    for threshold in (25, 50, 75, 100):
+        key = str(threshold)
+        if percent >= threshold and not flags[key]:
+            flags[key] = True
+            messages.append(threshold)
+    # display messages after updating flags
+    for t in messages:
+        if t == 100:
+            st.success(f"🎉 Amazing! You reached 100% of your daily goal — Great job!")
         else:
-            st.warning("Please fill all fields.")
+            st.info(f"Nice! You've reached {t}% of your goal. Keep going!")
 
+# SVG water-bottle generator: fill based on percentage (0-100)
+def generate_bottle_svg(percent: float, width:int=120, height:int=320) -> str:
+    percent = max(0, min(100, percent))
+    inner_width = width - 30
+    inner_height = height - 60
+    fill_height = (percent / 100.0) * inner_height
+    empty_height = inner_height - fill_height
+    svg = f"""
+    <svg width="{width}" height="{height}" viewBox="0 0 {width} {height}" xmlns="http://www.w3.org/2000/svg">
+      <!-- Bottle outline -->
+      <rect x="10" y="10" rx="18" ry="18" width="{width-20}" height="{height-20}" fill="none" stroke="#2B7AAB" stroke-width="4"/>
+      <!-- Inner (water) area background -->
+      <rect x="20" y="30" width="{inner_width}" height="{inner_height}" fill="#e6f5fb" rx="12" ry="12"/>
+      <!-- Water fill -->
+      <rect x="20" y="{30 + empty_height}" width="{inner_width}" height="{fill_height}" fill="#2B9FE3" rx="12" ry="12"/>
+      <!-- Percentage text -->
+      <text x="{width/2}" y="{height-10}" font-size="14" text-anchor="middle" fill="#023047">{percent:.0f}%</text>
+    </svg>
+    """
+    return svg
 
-# ---------------------------
-# 🔓 Login Page
-# ---------------------------
-def login_page():
-    st.title("🔐 Login to Water Buddy")
+# --------------------------
+# Streamlit UI
+# --------------------------
+st.set_page_config(page_title="WaterBuddy", page_icon="💧", layout="centered")
 
-    username = st.text_input("Username")
-    password = st.text_input("Password", type="password")
+st.title("WaterBuddy — your friendly hydration guide")
+st.markdown("Track daily water intake, set an age-aware goal, and get motivating feedback.")
 
-    if st.button("Login"):
-        user_data = firebase_get(f"users/{username}")
-        if user_data and user_data.get("password") == password:
-            st.session_state["user"] = username
-            st.session_state["page"] = "home"
-            st.session_state["daily_goal"] = user_data.get("daily_goal", 2000)
-            st.session_state["age"] = user_data.get("age", 18)
-            st.success("✅ Logged in successfully!")
-            st.rerun()
-        else:
-            st.error("Invalid username or password.")
+init_session()
 
-
-# ---------------------------
-# 🏠 Home Page
-# ---------------------------
-def home_page():
-    st.title("🏠 Water Buddy Home")
-
-    username = st.session_state.get("user")
-    if not username:
-        st.warning("Please log in first.")
-        return
-
-    user_data = firebase_get(f"users/{username}") or {}
-    daily_goal = user_data.get("daily_goal", 2000)
-    logged_today = user_data.get("logged_today", 0)
-    today_str = str(datetime.date.today())
-
-    st.metric("Today's Water Intake", f"{logged_today} ml", f"Goal: {daily_goal} ml")
-
-    add_ml = st.number_input("💧 Log Water Intake (ml)", min_value=50, max_value=2000, step=50)
-    if st.button("Log Water"):
-        new_total = logged_today + add_ml
-
-        # Update today's log and history
-        history = user_data.get("history", {})
-        history[today_str] = new_total
-
-        firebase_patch(f"users/{username}", {"logged_today": new_total, "history": history})
-        st.success(f"Logged {add_ml} ml! Total: {new_total} ml")
-        st.rerun()
-
-    progress = min(logged_today / daily_goal, 1)
-    st.progress(progress)
-    if progress >= 1:
-        st.balloons()
-
-    # 📊 Hydration History Chart
+# Sidebar: tips and quick info
+with st.sidebar:
+    st.header("Daily tip")
+    st.write(random.choice(TIPS))
     st.markdown("---")
-    st.subheader("📈 Your Hydration Progress")
-
-    history = user_data.get("history", {})
-    if history:
-        dates = list(history.keys())[-7:]  # last 7 days
-        values = [history[d] for d in dates]
-        goals = [daily_goal for _ in dates]
-
-        plt.figure(figsize=(6, 3))
-        plt.plot(dates, values, marker="o", label="Actual Intake (ml)")
-        plt.plot(dates, goals, linestyle="--", label="Goal (ml)")
-        plt.xticks(rotation=30)
-        plt.ylabel("Water (ml)")
-        plt.legend()
-        st.pyplot(plt)
-    else:
-        st.info("No history yet. Start logging to see your progress!")
-
-    # 🚀 Navigation
-    st.markdown("---")
-    st.subheader("🚀 Navigation")
-    col1, col2, col3 = st.columns(3)
+    st.write("Quick converter")
+    col1, col2 = st.columns(2)
     with col1:
-        if st.button("📋 Tasks"):
-            st.session_state["page"] = "tasks"
-            st.rerun()
-    with col2:
-        if st.button("⚙️ Settings"):
-            st.session_state["page"] = "settings"
-            st.rerun()
-    with col3:
-        if st.button("🚪 Logout"):
-            st.session_state.clear()
-            st.session_state["page"] = "login"
-            st.rerun()
-
-
-# ---------------------------
-# 📋 Tasks Page
-# ---------------------------
-def tasks_page():
-    st.title("📋 Daily Hydration Tasks")
-
-    username = st.session_state.get("user")
-    if not username:
-        st.warning("Please log in to view your tasks.")
-        return
-
-    user_data = firebase_get(f"users/{username}") or {}
-
-    if "completed_tasks" not in user_data:
-        user_data["completed_tasks"] = {}
-    if "rewards" not in user_data:
-        user_data["rewards"] = 0
-
-    tasks = [
-        {"id": "t1", "text": "Drink 1 cup of water now (200 ml)", "amount": 200},
-        {"id": "t2", "text": "Drink water before your meal (250 ml)", "amount": 250},
-        {"id": "t3", "text": "Refill your bottle (no log)", "amount": 0},
-        {"id": "t4", "text": "Take 2 sips right now (100 ml)", "amount": 100},
-    ]
-
-    st.write("💧 Click a task to complete it and earn rewards!")
-
-    if "tasks_to_log" not in st.session_state:
-        st.session_state["tasks_to_log"] = []
-
-    for t in tasks:
-        key = f"task_{t['id']}"
-        completed = user_data.get("completed_tasks", {}).get(key, False)
-
-        if completed:
-            st.success(f"✅ {t['text']} (Completed)")
-        else:
-            if st.button(t["text"], key=key):
-                user_data.setdefault("completed_tasks", {})[key] = True
-                user_data["rewards"] = user_data.get("rewards", 0) + 10
-                firebase_patch(f"users/{username}", {
-                    "completed_tasks": user_data["completed_tasks"],
-                    "rewards": user_data["rewards"]
-                })
-
-                st.session_state["tasks_to_log"].append(t)
-                st.success("🎉 Task completed! You earned +10 points!")
-                st.session_state["page"] = "home"
-                st.rerun()
-
-    st.markdown("---")
-    st.markdown(f"**🏆 Total Rewards:** {user_data.get('rewards', 0)} points")
-
-    st.divider()
-    st.subheader("🚀 Navigation")
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        if st.button("🏠 Go to Home"):
-            st.session_state["page"] = "home"
-            st.rerun()
-    with col2:
-        if st.button("⚙️ Settings"):
-            st.session_state["page"] = "settings"
-            st.rerun()
-    with col3:
-        if st.button("🚪 Logout"):
-            st.session_state.clear()
-            st.session_state["page"] = "login"
-            st.rerun()
-
-
-# ---------------------------
-# ⚙️ Settings Page
-# ---------------------------
-def settings_page():
-    st.title("⚙️ Settings")
-
-    username = st.session_state.get("user")
-    if not username:
-        st.warning("Please log in first.")
-        return
-
-    user_data = firebase_get(f"users/{username}") or {}
-    current_age = user_data.get("age", 18)
-    current_goal = user_data.get("daily_goal", recommended_goal(current_age))
-
-    st.subheader("👶 Personal Info")
-    age = st.number_input("Age:", min_value=1, max_value=100, value=current_age)
-
-    auto_goal = recommended_goal(age)
-    st.info(f"💧 Recommended daily goal for age {age}: **{auto_goal} ml**")
-
-    st.subheader("🎯 Custom Daily Goal")
-    daily_goal = st.number_input(
-        "Set your preferred daily water goal (ml):",
-        min_value=500,
-        max_value=6000,
-        value=int(current_goal)
-    )
-
-    if st.button("💾 Save Settings"):
-        firebase_patch(f"users/{username}", {"age": age, "daily_goal": daily_goal})
-        st.success("✅ Settings updated successfully!")
-        st.session_state["daily_goal"] = daily_goal
-        st.session_state["age"] = age
-
-    st.markdown("---")
-    st.subheader("🚀 Navigation")
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        if st.button("🏠 Home"):
-            st.session_state["page"] = "home"
-            st.rerun()
-    with col2:
-        if st.button("📋 Tasks"):
-            st.session_state["page"] = "tasks"
-            st.rerun()
-    with col3:
-        if st.button("🚪 Logout"):
-            st.session_state.clear()
-            st.session_state["page"] = "login"
-            st.rerun()
-
-
-# ---------------------------
-# 🧭 Page Router
-# ---------------------------
-if "page" not in st.session_state:
-    st.session_state["page"] = "login"
-
-page = st.session_state["page"]
-
-if page == "login":
-    login_page()
-elif page == "signup":
-    signup_page()
-elif page == "home":
-    home_page()
-elif page == "tasks":
-    tasks_page()
-elif page == "settings":
-    settings_page()
-
+        cups_in = st.number_input("Cups", min_value=0.0, value=0.0,_
