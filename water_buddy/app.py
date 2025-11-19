@@ -321,28 +321,46 @@ def dashboard_ui():
     profile = get_user_profile(uid)
     intake = get_today_intake(uid)
 
+    # ensure persistent nav selection
+    if "nav" not in st.session_state:
+        st.session_state.nav = "Home"
+
     left_col, right_col = st.columns([1, 3])
 
     with left_col:
         st.subheader("Menu")
 
-        # Theme selector in left pane
-        theme_choice = st.selectbox("Theme", ["Light", "Dark", "Aqua"], index=["Light","Dark","Aqua"].index(st.session_state.get("theme","Light")))
+        # Theme selector (keeps your existing theme logic)
+        theme_choice = st.selectbox("Theme", ["Light", "Dark", "Aqua"],
+                                    index=["Light","Dark","Aqua"].index(st.session_state.get("theme","Light")))
         if theme_choice != st.session_state.get("theme"):
             st.session_state.theme = theme_choice
             apply_theme(theme_choice)
-            st.rerun()
+            # no need to rerun, we update view below
 
-        nav = st.radio("Navigate", ["Home", "Log Water", "Settings", "Logout"])
+        # Use buttons for navigation so labels are always visible in every theme
+        st.markdown("")  # spacer
+        if st.button("Home"):
+            st.session_state.nav = "Home"
+        if st.button("Log Water"):
+            st.session_state.nav = "Log Water"
+        if st.button("Settings"):
+            st.session_state.nav = "Settings"
+        if st.button("Logout"):
+            st.session_state.nav = "Logout"
+
         st.markdown("---")
         st.write("Tip of the day")
         st.info(st.session_state.tip)
         if st.button("New tip"):
             st.session_state.tip = random.choice(TIPS)
-            st.rerun()
+            # update displayed tip without forced rerun
+
+    # apply theme before rendering right column content
+    apply_theme(st.session_state.get("theme", "Light"))
 
     with right_col:
-        apply_theme(st.session_state.get("theme", "Light"))
+        nav = st.session_state.nav
 
         if nav == "Home":
             st.header("Today's Summary")
@@ -386,17 +404,18 @@ def dashboard_ui():
 
             c1, c2, c3 = st.columns([1,1,1])
             with c1:
-                if st.button(f"+{DEFAULT_QUICK_LOG_ML} ml"):
+                if st.button(f"+{DEFAULT_QUICK_LOG_ML} ml", key="quick_log"):
                     new_val = intake + DEFAULT_QUICK_LOG_ML
                     ok = set_today_intake(uid, new_val)
                     if ok:
                         st.success(f"Added {DEFAULT_QUICK_LOG_ML} ml.")
-                        st.rerun()
+                        # refresh local intake variable
+                        intake = get_today_intake(uid)
                     else:
                         st.error("Failed to update. Check network/DB rules.")
             with c2:
                 custom = st.number_input("Custom amount (ml)", min_value=0, step=50, key="custom_input")
-                if st.button("Add custom"):
+                if st.button("Add custom", key="add_custom"):
                     if custom <= 0:
                         st.warning("Enter amount > 0")
                     else:
@@ -404,15 +423,15 @@ def dashboard_ui():
                         ok = set_today_intake(uid, new_val)
                         if ok:
                             st.success(f"Added {int(custom)} ml.")
-                            st.rerun()
+                            intake = get_today_intake(uid)
                         else:
                             st.error("Failed to update. Check network/DB rules.")
             with c3:
-                if st.button("Reset today"):
+                if st.button("Reset today", key="reset_today"):
                     ok = reset_today_intake(uid)
                     if ok:
                         st.info("Reset successful.")
-                        st.rerun()
+                        intake = get_today_intake(uid)
                     else:
                         st.error("Failed to reset. Check network/DB rules.")
 
@@ -421,12 +440,12 @@ def dashboard_ui():
             cc1, cc2 = st.columns(2)
             with cc1:
                 cups = st.number_input("Cups", min_value=0.0, step=0.5, key="conv_cups")
-                if st.button("Convert cups → ml"):
+                if st.button("Convert cups → ml", key="conv_to_ml"):
                     ml_conv = round(cups * CUPS_TO_ML, 1)
                     st.success(f"{cups} cups = {ml_conv} ml")
             with cc2:
                 ml_in = st.number_input("Milliliters", min_value=0.0, step=50.0, key="conv_ml")
-                if st.button("Convert ml → cups"):
+                if st.button("Convert ml → cups", key="conv_to_cups"):
                     cups_conv = round(ml_in / CUPS_TO_ML, 2)
                     st.success(f"{ml_in} ml = {cups_conv} cups")
 
@@ -438,7 +457,7 @@ def dashboard_ui():
             st.write(f"Suggested goal: {suggested} ml")
             user_goal_val = st.number_input("Your daily goal (ml)", min_value=500, max_value=10000,
                                            value=int(profile.get("user_goal_ml", suggested)), step=50)
-            if st.button("Save"):
+            if st.button("Save", key="save_profile"):
                 ok = update_user_profile(uid, {"age_group": age_choice, "user_goal_ml": int(user_goal_val)})
                 if ok:
                     st.success("Profile saved.")
@@ -446,21 +465,14 @@ def dashboard_ui():
                     st.error("Failed to save profile. Check network/DB rules.")
 
         elif nav == "Logout":
+            # clear session and return to login
             st.session_state.logged_in = False
             st.session_state.uid = None
             st.session_state.page = "login"
+            st.session_state.nav = "Home"
             st.rerun()
 
-# -----------------------
-# Routing
-# -----------------------
-if not st.session_state.logged_in:
-    if st.session_state.page == "signup":
-        signup_ui()
-    else:
-        login_ui()
-else:
-    dashboard_ui()
+
 
 
 
