@@ -16,7 +16,7 @@ import random
 import time
 import os
 
-# Lottie support
+# Lottie support (optional)
 try:
     from streamlit_lottie import st_lottie
 except Exception:
@@ -164,9 +164,15 @@ def get_user_profile(uid: str):
         return {"age_group": "19-50", "user_goal_ml": AGE_GOALS_ML["19-50"]}
     profile = firebase_get(f"{USERS_NODE}/{uid}/profile")
     if isinstance(profile, dict):
+        # ensure int and safe default
+        user_goal = profile.get("user_goal_ml", AGE_GOALS_ML["19-50"])
+        try:
+            user_goal = int(user_goal)
+        except Exception:
+            user_goal = AGE_GOALS_ML["19-50"]
         return {
             "age_group": profile.get("age_group", "19-50"),
-            "user_goal_ml": int(profile.get("user_goal_ml", AGE_GOALS_ML["19-50"]))
+            "user_goal_ml": user_goal
         }
     return {"age_group": "19-50", "user_goal_ml": AGE_GOALS_ML["19-50"]}
 
@@ -185,54 +191,112 @@ def get_username_by_uid(uid: str):
 # UI helpers (SVG)
 # -----------------------
 def generate_bottle_svg(percent: float, width:int=140, height:int=360) -> str:
+    """
+    Simple bottle SVG with dynamic fill height.
+    percent: 0..100
+    """
     pct = max(0.0, min(100.0, float(percent)))
     inner_w = width - 36
     inner_h = height - 80
     fill_h = (pct / 100.0) * inner_h
     empty_h = inner_h - fill_h
+
+    # Coordinates are chosen to keep visual proportions consistent.
     svg = f"""
 <svg width="{width}" height="{height}" viewBox="0 0 {width} {height}" xmlns="http://www.w3.org/2000/svg">
-  <rect x="12" y="12" rx="20" ry="20" width="{width-24}" height="{height-24}" fill="none" stroke="#1f77b4" stroke-width="4"/>
-  <rect x="24" y="36" width="{inner_w}" height="{inner_h}" rx="12" ry="12" fill="#e9f6fb"/>
-  <rect x="24" y="{36 + empty_h}" width="{inner_w}" height="{fill_h}" rx="12" ry="12" fill="#2ca6e0"/>
-  <text x="{width/2}" y="{height-10}" font-size="14" text-anchor="middle" fill="#023047">{pct:.0f}%</text>
+  <!-- Outer bottle border -->
+  <rect x="12" y="12" rx="20" ry="20" width="{width-24}" height="{height-24}" fill="none" stroke="#5dade2" stroke-width="3"/>
+  <!-- Bottle background -->
+  <rect x="18" y="18" width="{inner_w}" height="{inner_h}" rx="12" ry="12" fill="#f3fbff"/>
+  <!-- Water fill -->
+  <rect x="18" y="{18 + empty_h}" width="{inner_w}" height="{fill_h}" rx="12" ry="12" fill="#67b3df"/>
+  <!-- Cap -->
+  <rect x="{(width/2)-18}" y="0" width="36" height="18" rx="4" ry="4" fill="#3498db"/>
+  <!-- Percentage text -->
+  <text x="{width/2}" y="{height-8}" font-size="14" text-anchor="middle" fill="#023047" font-family="Arial">{pct:.0f}%</text>
 </svg>
 """
     return svg
 
 # -----------------------
-# Theme CSS (readable nav)
+# Theme CSS (readable nav & metric fix)
 # -----------------------
-def apply_theme(theme_name: str):
-    # Force readable colors for navigation and inputs across themes
-    if theme_name == "Dark":
+def apply_theme(theme):
+    """
+    Applies theme CSS including metric styling so st.metric follows theme colors.
+    Call this after session_state.theme is set (and whenever it changes).
+    """
+    if theme == "Light":
         st.markdown("""
-            <style>
-            .stApp { background-color: #0f1720; color: #e6eef6; }
-            .stButton>button { background-color: #444444 !important; color: #ffffff !important; border-radius:6px; }
-            div.stRadio label, .stSidebar, .stText, .css-1q8dd3e { color: #e6eef6 !important; }
-            input { color: #e6eef6 !important; background-color: #1a1a1a !important; }
-            </style>
+        <style>
+        .stApp { background-color: #ffffff; color: #000000; }
+
+        /* navigation / button adjustments */
+        .stButton>button { background-color: #ADD8E6 !important; color: #000000 !important; border-radius:6px; }
+
+        /* Metric container (overrides Streamlit's internal styling) */
+        div[data-testid="metric-container"] {
+            background-color: #f2f2f2 !important;
+            border-radius: 12px !important;
+            padding: 10px 12px !important;
+            color: #000000 !important;
+        }
+        div[data-testid="metric-container"] * {
+            color: #000000 !important;
+        }
+        div[data-testid="metric-container"] [data-testid="metric-delta"] {
+            color: #006600 !important;
+            font-weight: 600 !important;
+        }
+        </style>
         """, unsafe_allow_html=True)
-    elif theme_name == "Aqua":
+
+    elif theme == "Aqua":
         st.markdown("""
-            <style>
-            .stApp { background-color: #e8fbff; color: #003049; }
-            .stButton>button { background-color: #0077b6 !important; color: #ffffff !important; border-radius:6px; }
-            /* Make navigation labels clearly black */
-            .left-nav-button, .left-nav-button * { color: #000000 !important; }
-            .stSidebar, div.stButton > button { color: #000000 !important; }
-            input { color: #003049 !important; background-color: #ffffff !important; }
-            </style>
+        <style>
+        .stApp { background-color: #e8fbff; color: #003f5c; }
+        .stButton>button { background-color: #0077b6 !important; color: #ffffff !important; border-radius:6px; }
+
+        /* Make navigation labels clearly black if needed */
+        .left-nav-button, .left-nav-button * { color: #000000 !important; }
+
+        /* Metric container (Aqua) */
+        div[data-testid="metric-container"] {
+            background-color: #d6f6ff !important;
+            border-radius: 12px !important;
+            padding: 10px 12px !important;
+            color: #003f5c !important;
+        }
+        div[data-testid="metric-container"] * {
+            color: #003f5c !important;
+        }
+        div[data-testid="metric-container"] [data-testid="metric-delta"] {
+            color: #0077b6 !important;
+            font-weight: 600 !important;
+        }
+        </style>
         """, unsafe_allow_html=True)
-    else:  # Light
+
+    else:  # Dark
         st.markdown("""
-            <style>
-            .stApp { background-color: #ffffff; color: #000000; }
-            .stButton>button { background-color: #ADD8E6 !important; color: #000000 !important; border-radius:6px; }
-            .left-nav-button, .left-nav-button * { color: #000000 !important; }
-            input { color: #000000 !important; background-color: #ffffff !important; }
-            </style>
+        <style>
+        .stApp { background-color: #0f1720; color: #e6eef6; }
+        .stButton>button { background-color: #444444 !important; color: #ffffff !important; border-radius:6px; }
+
+        div[data-testid="metric-container"] {
+            background-color: #1d2a35 !important;
+            border-radius: 12px !important;
+            padding: 10px 12px !important;
+            color: #e6eef6 !important;
+        }
+        div[data-testid="metric-container"] * {
+            color: #e6eef6 !important;
+        }
+        div[data-testid="metric-container"] [data-testid="metric-delta"] {
+            color: #4caf50 !important;
+            font-weight: 600 !important;
+        }
+        </style>
         """, unsafe_allow_html=True)
 
 # -----------------------
@@ -252,7 +316,6 @@ if st_lottie is not None:
     if os.path.exists(assets_path):
         LOTTIE_PROGRESS = load_lottie(assets_path)
     else:
-        # try alternative filename
         alt = os.path.join("assets", "progress.json")
         if os.path.exists(alt):
             LOTTIE_PROGRESS = load_lottie(alt)
@@ -261,6 +324,12 @@ if st_lottie is not None:
 # Streamlit app start
 # -----------------------
 st.set_page_config(page_title="WaterBuddy", layout="wide")
+# ensure theme applied early using session_state default (set below)
+if "theme" not in st.session_state:
+    st.session_state.theme = "Light"
+# immediately apply so initial render looks correct
+apply_theme(st.session_state.theme)
+
 st.title("WaterBuddy — Hydration Tracker")
 
 # session state defaults
@@ -274,8 +343,6 @@ if "nav" not in st.session_state:
     st.session_state.nav = "Home"
 if "tip" not in st.session_state:
     st.session_state.tip = random.choice(TIPS)
-if "theme" not in st.session_state:
-    st.session_state.theme = "Light"
 
 # -----------------------
 # Login and Signup UIs
@@ -297,7 +364,7 @@ def login_ui():
                     st.session_state.uid = uid
                     st.session_state.page = "dashboard"
                     st.success("Login successful.")
-                    time.sleep(0.4)
+                    time.sleep(0.25)
                     st.rerun()
                 else:
                     st.error("Invalid username or password.")
@@ -321,7 +388,7 @@ def signup_ui():
                 if uid:
                     st.success("Account created. Please log in.")
                     st.session_state.page = "login"
-                    time.sleep(0.5)
+                    time.sleep(0.25)
                     st.rerun()
                 else:
                     st.error("Username already taken or network error.")
@@ -350,16 +417,23 @@ def dashboard_ui():
 
     with left_col:
         st.subheader("Navigate")
-        # Theme selector
-        theme_choice = st.selectbox("Theme", ["Light","Aqua","Dark"], index=["Light","Aqua","Dark"].index(st.session_state.theme))
+        # Theme selector (safe index)
+        theme_options = ["Light","Aqua","Dark"]
+        try:
+            idx = theme_options.index(st.session_state.theme)
+        except Exception:
+            idx = 0
+            st.session_state.theme = theme_options[0]
+
+        theme_choice = st.selectbox("Theme", theme_options, index=idx)
         if theme_choice != st.session_state.theme:
             st.session_state.theme = theme_choice
             apply_theme(theme_choice)
-            # no rerun required; UI updates next render
+            # update immediately visually (no rerun required)
 
         st.markdown("")  # spacer
 
-        # Use styled buttons to ensure legibility across themes
+        # left nav buttons
         if st.button("Home", key="nav_home"):
             st.session_state.nav = "Home"
         if st.button("Log Water", key="nav_log"):
@@ -379,7 +453,7 @@ def dashboard_ui():
         if st.button("New tip", key="new_tip"):
             st.session_state.tip = random.choice(TIPS)
 
-    # apply theme for right pane readability
+    # ensure theme for right pane
     apply_theme(st.session_state.theme)
 
     with right_col:
@@ -404,31 +478,27 @@ def dashboard_ui():
             remaining = max(user_goal - intake, 0)
             percent = min((intake / user_goal) * 100 if user_goal > 0 else 0, 100)
 
+            # Metric now styled by apply_theme() CSS
             st.metric("Total intake (ml)", f"{intake} ml", delta=f"{remaining} ml to goal" if remaining > 0 else "Goal reached!")
             st.progress(percent / 100)
 
             svg = generate_bottle_svg(percent)
             st.components.v1.html(svg, height=360, scrolling=False)
 
-            # -----------------------
-            # Lottie progress bar (always visible)
-            # -----------------------
+            # Lottie progress bar (optional)
             if st_lottie is not None and LOTTIE_PROGRESS is not None:
                 try:
-                    # if animation length is 150 frames (as delivered), scale end_frame by percent
                     total_frames = 150
                     end_frame = int(total_frames * (percent / 100.0))
                     if end_frame < 1:
                         end_frame = 1
                     st_lottie(LOTTIE_PROGRESS, loop=False, start_frame=0, end_frame=end_frame, height=120)
                 except Exception:
-                    # fallback: show the animation normally
                     try:
                         st_lottie(LOTTIE_PROGRESS, loop=False, height=120)
                     except Exception:
                         pass
             else:
-                # fallback: show numeric progress if lottie not available
                 st.write(f"Progress: {percent:.0f}%")
 
             # milestone messages
@@ -495,7 +565,13 @@ def dashboard_ui():
 
         elif nav == "Settings":
             st.header("Settings & Profile")
-            age_choice = st.selectbox("Select age group", list(AGE_GOALS_ML.keys()), index=list(AGE_GOALS_ML.keys()).index(profile.get("age_group","19-50")))
+            # safe index for selectbox
+            age_keys = list(AGE_GOALS_ML.keys())
+            try:
+                idx = age_keys.index(profile.get("age_group", "19-50"))
+            except Exception:
+                idx = 2  # default to "19-50"
+            age_choice = st.selectbox("Select age group", age_keys, index=idx)
             suggested = AGE_GOALS_ML[age_choice]
             st.write(f"Suggested: {suggested} ml")
             user_goal_val = st.number_input("Daily goal (ml)", min_value=500, max_value=10000, value=int(profile.get("user_goal_ml", suggested)), step=50)
