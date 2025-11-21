@@ -276,6 +276,11 @@ def apply_theme(theme_name: str):
             color: #006600 !important;
             font-weight: 600 !important;
         }
+        /* Fix for st.metric value text */
+        div[data-testid="metric-container"] div[data-testid="stMetricValue"] > span,
+        div[data-testid="metric-container"] div[data-testid="stMetricValue"] span {
+        color: inherit !important;   /* makes it use theme color */
+        }
 
         </style>
         """, unsafe_allow_html=True)
@@ -334,6 +339,11 @@ def apply_theme(theme_name: str):
         div[data-testid="metric-container"] [data-testid="metric-delta"] {
             color: #0077b6 !important;
             font-weight: 600 !important;
+        }
+        /* Fix for st.metric value text */
+        div[data-testid="metric-container"] div[data-testid="stMetricValue"] > span,
+        div[data-testid="metric-container"] div[data-testid="stMetricValue"] span {
+        color: inherit !important;   /* makes it use theme color */
         }
 
         </style>
@@ -394,7 +404,12 @@ def apply_theme(theme_name: str):
             color: #4caf50 !important;
             font-weight: 600 !important;
         }
-
+        /* Fix for st.metric value text */
+        div[data-testid="metric-container"] div[data-testid="stMetricValue"] > span,
+        div[data-testid="metric-container"] div[data-testid="stMetricValue"] span {
+        color: inherit !important;   /* makes it use theme color */
+        }
+        
         </style>
         """, unsafe_allow_html=True)
 
@@ -698,4 +713,5 @@ if not st.session_state.logged_in:
         login_ui()
 else:
     dashboard_ui()
+
 
