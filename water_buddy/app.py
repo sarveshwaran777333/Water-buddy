@@ -221,81 +221,180 @@ def generate_bottle_svg(percent: float, width:int=140, height:int=360) -> str:
 # -----------------------
 # Theme CSS (readable nav & metric fix)
 # -----------------------
-def apply_theme(theme):
-    """
-    Applies theme CSS including metric styling so st.metric follows theme colors.
-    Call this after session_state.theme is set (and whenever it changes).
-    """
-    if theme == "Light":
+def apply_theme(theme_name: str):
+
+    # ---------------------- LIGHT MODE ----------------------
+    if theme_name == "Light":
         st.markdown("""
         <style>
-        .stApp { background-color: #ffffff; color: #000000; }
 
-        /* navigation / button adjustments */
-        .stButton>button { background-color: #ADD8E6 !important; color: #000000 !important; border-radius:6px; }
-
-        /* Metric container (overrides Streamlit's internal styling) */
-        div[data-testid="metric-container"] {
-            background-color: #f2f2f2 !important;
-            border-radius: 12px !important;
-            padding: 10px 12px !important;
+        .stApp {
+            background-color: #ffffff !important;
             color: #000000 !important;
         }
-        div[data-testid="metric-container"] * {
+
+        h1, h2, h3, h4, h5, h6, p, label, span {
             color: #000000 !important;
+        }
+
+        .stButton>button {
+            background-color: #e6e6e6 !important;
+            color: #000000 !important;
+            border-radius: 8px !important;
+            border: 1px solid #cccccc !important;
+        }
+        .stButton>button:hover {
+            background-color: #d9d9d9 !important;
+        }
+
+        .stTextInput>div>div>input {
+            background-color: #fafafa !important;
+            color: #000000 !important;
+            border-radius: 6px !important;
+        }
+
+        .stSlider>div>div>div {
+            background-color: #007acc !important;
+        }
+
+        div[data-testid="metric-container"] {
+            background-color: #f7f7f7 !important;
+            border-radius: 12px !important;
+            padding: 12px !important;
+            border: 1px solid #e1e1e1 !important;
+        }
+        div[data-testid="metric-container"] label {
+            color: #000000 !important;
+            font-weight: 600 !important;
+        }
+        div[data-testid="metric-container"] [data-testid="stMetricValue"] {
+            color: #000000 !important;
+            font-weight: 700 !important;
+            font-size: 1.5rem !important;
         }
         div[data-testid="metric-container"] [data-testid="metric-delta"] {
             color: #006600 !important;
             font-weight: 600 !important;
         }
+
         </style>
         """, unsafe_allow_html=True)
 
-    elif theme == "Aqua":
+
+
+    # ---------------------- AQUA MODE ----------------------
+    elif theme_name == "Aqua":
         st.markdown("""
         <style>
-        .stApp { background-color: #e8fbff; color: #003f5c; }
-        .stButton>button { background-color: #0077b6 !important; color: #ffffff !important; border-radius:6px; }
 
-        /* Make navigation labels clearly black if needed */
-        .left-nav-button, .left-nav-button * { color: #000000 !important; }
-
-        /* Metric container (Aqua) */
-        div[data-testid="metric-container"] {
-            background-color: #d6f6ff !important;
-            border-radius: 12px !important;
-            padding: 10px 12px !important;
-            color: #003f5c !important;
+        .stApp {
+            background-color: #e8fbff !important;
+            color: #004455 !important;
         }
-        div[data-testid="metric-container"] * {
-            color: #003f5c !important;
+
+        h1, h2, h3, h4, h5, h6, p, label, span {
+            color: #004455 !important;
+        }
+
+        .stButton>button {
+            background-color: #c6f3ff !important;
+            color: #004455 !important;
+            border-radius: 8px !important;
+            border: 1px solid #99e6ff !important;
+        }
+        .stButton>button:hover {
+            background-color: #b3edff !important;
+        }
+
+        .stTextInput>div>div>input {
+            background-color: #ffffff !important;
+            color: #003344 !important;
+            border-radius: 6px !important;
+        }
+
+        .stSlider>div>div>div {
+            background-color: #00aacc !important;
+        }
+
+        div[data-testid="metric-container"] {
+            background-color: #d9f7ff !important;
+            border-radius: 12px !important;
+            padding: 12px !important;
+            border: 1px solid #bdefff !important;
+        }
+        div[data-testid="metric-container"] label {
+            color: #005577 !important;
+            font-weight: 600 !important;
+        }
+        div[data-testid="metric-container"] [data-testid="stMetricValue"] {
+            color: #005577 !important;
+            font-weight: 700 !important;
+            font-size: 1.5rem !important;
         }
         div[data-testid="metric-container"] [data-testid="metric-delta"] {
             color: #0077b6 !important;
             font-weight: 600 !important;
         }
+
         </style>
         """, unsafe_allow_html=True)
 
-    else:  # Dark
+
+
+    # ---------------------- DARK MODE ----------------------
+    else:
         st.markdown("""
         <style>
-        .stApp { background-color: #0f1720; color: #e6eef6; }
-        .stButton>button { background-color: #444444 !important; color: #ffffff !important; border-radius:6px; }
 
-        div[data-testid="metric-container"] {
-            background-color: #1d2a35 !important;
-            border-radius: 12px !important;
-            padding: 10px 12px !important;
+        .stApp {
+            background-color: #0f1720 !important;
             color: #e6eef6 !important;
         }
-        div[data-testid="metric-container"] * {
+
+        h1, h2, h3, h4, h5, h6, p, label, span {
             color: #e6eef6 !important;
+        }
+
+        .stButton>button {
+            background-color: #1e2933 !important;
+            color: #e6eef6 !important;
+            border-radius: 8px !important;
+            border: 1px solid #324151 !important;
+        }
+        .stButton>button:hover {
+            background-color: #253241 !important;
+        }
+
+        .stTextInput>div>div>input {
+            background-color: #1e2933 !important;
+            color: #e6eef6 !important;
+            border-radius: 6px !important;
+        }
+
+        .stSlider>div>div>div {
+            background-color: #3b82f6 !important;
+        }
+
+        div[data-testid="metric-container"] {
+            background-color: #1a2634 !important;
+            border-radius: 12px !important;
+            padding: 12px !important;
+            border: 1px solid #334155 !important;
+        }
+        div[data-testid="metric-container"] label {
+            color: #e6eef6 !important;
+            font-weight: 600 !important;
+        }
+        div[data-testid="metric-container"] [data-testid="stMetricValue"] {
+            color: #e6eef6 !important;
+            font-weight: 700 !important;
+            font-size: 1.5rem !important;
         }
         div[data-testid="metric-container"] [data-testid="metric-delta"] {
             color: #4caf50 !important;
             font-weight: 600 !important;
         }
+
         </style>
         """, unsafe_allow_html=True)
 
@@ -599,3 +698,4 @@ if not st.session_state.logged_in:
         login_ui()
 else:
     dashboard_ui()
+
