@@ -17,8 +17,7 @@ import matplotlib.pyplot as plt
 import uuid # For generating unique user IDs
 
 # Lottie support (optional)
-# FIX: The previous SyntaxError was here due to invisible characters (U+00A0).
-# Ensure standard indentation is used.
+# FIX: Ensure standard indentation is used.
 try:
     from streamlit_lottie import st_lottie
 except ImportError:
@@ -521,6 +520,7 @@ def dashboard_ui():
             st.progress(percent / 100)
 
             # Display the water bottle SVG 
+            # 
             svg = generate_bottle_svg(percent)
             st.components.v1.html(svg, height=360, scrolling=False)
 
@@ -608,9 +608,7 @@ def dashboard_ui():
             past_intake_data = get_past_intake(uid, days_count=7)
             
             # 2. Generate and display the plot 
-
-[Image of a line graph showing daily water intake over 7 days]
-
+            #  # REMOVED SYNTAX ERROR
             try:
                 # Pass the goal to the plotting function for reference line
                 intake_plot_fig = plot_water_intake(past_intake_data, user_goal) 
